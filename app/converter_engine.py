@@ -180,14 +180,31 @@ def process_page(page, page_num):
 def convert_single_pdf(pdf_path, output_md_path):
     """
     Converts a complete PDF document to structured Markdown with metadata header.
+    output_md_path can be either an output directory or a specific .md file path.
     """
     filename = os.path.basename(pdf_path)
+    base_name = os.path.splitext(filename)[0]
+    
+    if os.path.isdir(output_md_path) or not output_md_path.lower().endswith(".md"):
+        output_dir = output_md_path
+        clean = re.sub(r'[^a-zA-Z0-9_\-\s]', '', base_name)
+        clean = re.sub(r'\s+', '_', clean).strip('_')
+        md_name = (clean[:65] if clean else "dokumen") + ".md"
+        output_md_path = os.path.join(output_dir, md_name)
+        
     pages_md = []
     
     with pdfplumber.open(pdf_path) as pdf:
         total_pages = len(pdf.pages)
         for idx, page in enumerate(pdf.pages):
-            p_md = process_page(page, idx + 1)
+            try:
+                p_md = process_page(page, idx + 1)
+            except Exception:
+                try:
+                    fallback_text = page.extract_text() or ""
+                except Exception:
+                    fallback_text = "(Halaman tidak dapat diekstraksi secara otomatis)"
+                p_md = f"<!-- PAGE {idx + 1} START -->\n\n{fallback_text}\n\n<!-- PAGE {idx + 1} END -->\n\n---\n"
             pages_md.append(p_md)
             
     full_text = "\n".join(pages_md)
@@ -299,7 +316,10 @@ def convert_single_docx(docx_path, output_dir):
         
     filename = os.path.basename(docx_path)
     base_name = os.path.splitext(filename)[0]
-    output_md_path = os.path.join(output_dir, f"{base_name}.md")
+    if os.path.isdir(output_dir) or not output_dir.lower().endswith(".md"):
+        output_md_path = os.path.join(output_dir, f"{base_name}.md")
+    else:
+        output_md_path = output_dir
     
     doc = docx.Document(docx_path)
     
@@ -406,7 +426,10 @@ def convert_single_doc(doc_path, output_dir):
     """
     filename = os.path.basename(doc_path)
     base_name = os.path.splitext(filename)[0]
-    output_md_path = os.path.join(output_dir, f"{base_name}.md")
+    if os.path.isdir(output_dir) or not output_dir.lower().endswith(".md"):
+        output_md_path = os.path.join(output_dir, f"{base_name}.md")
+    else:
+        output_md_path = output_dir
     
     try:
         res = subprocess.run(["antiword", "-m", "UTF-8.txt", doc_path], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=True)

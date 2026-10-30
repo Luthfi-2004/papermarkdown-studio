@@ -1,6 +1,7 @@
 import os
 import glob
 import re
+import traceback
 import mistune
 from flask import Flask, request, jsonify, send_file, send_from_directory
 from app.converter_engine import convert_any_document, convert_single_pdf
@@ -168,11 +169,18 @@ def upload_files():
             result = convert_any_document(dest_path, OUTPUT_DIR)
             converted_list.append(result)
         except Exception as e:
+            traceback.print_exc()
             return jsonify({
                 "success": False,
                 "error": f"Gagal mengonversi '{safe_name}': {str(e)}"
             }), 500
             
+    if not converted_list:
+        return jsonify({
+            "success": False,
+            "error": "Tidak ada file valid (.pdf, .docx, .doc) yang berhasil diproses."
+        }), 400
+
     return jsonify({
         "success": True,
         "converted": converted_list
@@ -190,6 +198,7 @@ def convert_specific(doc_filename):
         result = convert_any_document(doc_path, OUTPUT_DIR)
         return jsonify({"success": True, "result": result})
     except Exception as e:
+        traceback.print_exc()
         return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route("/api/download/<md_filename>", methods=["GET"])
