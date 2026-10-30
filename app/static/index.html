@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PaperMarkdown Studio : Konversi Artikel PDF ke Markdown Terstruktur untuk AI</title>
+  <meta name="description" content="Aplikasi konversi PDF artikel ilmiah ke Markdown dengan layout 2-kolom utuh dan tabel presisi untuk analisis AI.">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <!-- Header / Top Bar -->
+  <header class="app-header">
+    <div class="header-brand">
+      <div class="brand-icon" aria-hidden="true">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+          <polyline points="14 2 14 8 20 8"></polyline>
+          <line x1="16" y1="13" x2="8" y2="13"></line>
+          <line x1="16" y1="17" x2="8" y2="17"></line>
+          <polyline points="10 9 9 9 8 9"></polyline>
+        </svg>
+      </div>
+      <div>
+        <h1 class="brand-title">PaperMarkdown Studio</h1>
+        <p class="brand-subtitle">Konverter PDF Penelitian ke Markdown Khusus Pemahaman AI</p>
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <!-- Status Badge -->
+      <div class="real-status-badge" id="engine-status">
+        <span class="status-indicator"></span>
+        <span id="doc-counter">15 Dokumen Siap</span>
+      </div>
+
+      <!-- Theme Toggle -->
+      <button id="theme-toggle-btn" class="theme-btn" aria-label="Ganti Tema Terang atau Gelap" title="Ganti Tema">
+        <svg class="sun-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="5"></circle>
+          <line x1="12" y1="1" x2="12" y2="3"></line>
+          <line x1="12" y1="21" x2="12" y2="23"></line>
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+          <line x1="1" y1="12" x2="3" y2="12"></line>
+          <line x1="21" y1="12" x2="23" y2="12"></line>
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+        </svg>
+        <svg class="moon-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Layout -->
+  <main class="app-container">
+    <!-- Left Column: Upload & Document Manager -->
+    <aside class="sidebar-panel">
+      <!-- Upload Dropzone Card -->
+      <section class="panel-card upload-section">
+        <h2 class="section-title">Upload Artikel PDF Baru</h2>
+        <div id="dropzone" class="dropzone-area" tabindex="0" role="button" aria-label="Area Unggah File PDF. Klik atau seret file ke sini">
+          <input type="file" id="file-input" accept=".pdf" multiple hidden>
+          <div class="dropzone-content">
+            <svg class="upload-icon" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="17 8 12 3 7 8"></polyline>
+              <line x1="12" y1="3" x2="12" y2="15"></line>
+            </svg>
+            <p class="dropzone-main-text">Tarik dan lepas file PDF ke sini</p>
+            <p class="dropzone-sub-text">atau <span class="highlight-browse">pilih file dari komputer</span></p>
+          </div>
+        </div>
+
+        <!-- Upload Progress Indicator (Hidden by default) -->
+        <div id="upload-progress-container" class="progress-box hidden" aria-live="polite">
+          <div class="progress-header">
+            <span id="upload-status-label" class="progress-label">Mengonversi dokumen...</span>
+            <span id="upload-percent-label" class="progress-percent">0%</span>
+          </div>
+          <div class="progress-bar-bg">
+            <div id="upload-progress-bar" class="progress-bar-fill"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Document List Card -->
+      <section class="panel-card list-section">
+        <div class="list-header">
+          <h2 class="section-title">Daftar Dokumen Penelitian</h2>
+          <span id="badge-count" class="counter-badge">15 file</span>
+        </div>
+
+        <!-- Search / Filter input -->
+        <div class="search-box">
+          <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input type="text" id="search-input" placeholder="Cari nama paper, saham, atau metode..." aria-label="Cari dokumen">
+        </div>
+
+        <!-- Document Items Container -->
+        <div id="doc-list" class="doc-list" role="list">
+          <!-- Populated by JavaScript -->
+        </div>
+
+        <!-- Empty state for search -->
+        <div id="empty-search" class="empty-state hidden">
+          <p>Tidak ada dokumen yang sesuai dengan kata kunci pencarian.</p>
+        </div>
+      </section>
+    </aside>
+
+    <!-- Right Column: Document Viewer & Actions -->
+    <section class="content-panel">
+      <!-- Viewer Header Bar -->
+      <div class="viewer-header">
+        <div class="active-file-meta">
+          <span class="file-format-tag">Markdown</span>
+          <h2 id="active-doc-title" class="active-title">Pilih dokumen di panel kiri untuk membaca hasil konversi</h2>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="viewer-actions">
+          <!-- View Mode Tabs -->
+          <div class="view-mode-tabs" role="tablist">
+            <button id="tab-rendered" class="tab-btn active" role="tab" aria-selected="true" aria-controls="view-rendered">
+              Tampilan Terformat
+            </button>
+            <button id="tab-raw" class="tab-btn" role="tab" aria-selected="false" aria-controls="view-raw">
+              Kode Markdown
+            </button>
+          </div>
+
+          <!-- Utility Buttons -->
+          <button id="copy-btn" class="action-btn" title="Salin seluruh isi Markdown ke Clipboard" disabled>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+            </svg>
+            <span id="copy-btn-text">Salin Teks</span>
+          </button>
+
+          <button id="download-btn" class="action-btn" title="Unduh file .md ke komputer Anda" disabled>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            <span>Unduh .md</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Viewer Content Panes -->
+      <div class="viewer-body">
+        <!-- Rendered Tab Content -->
+        <div id="view-rendered" class="rendered-pane" role="tabpanel" aria-labelledby="tab-rendered">
+          <div id="rendered-content" class="markdown-body">
+            <!-- Initial Welcome / Empty State -->
+            <div class="welcome-box">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="welcome-icon">
+                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+              </svg>
+              <h3>Selamat Datang di PaperMarkdown Studio</h3>
+              <p>Pilih salah satu dari 15 artikel di sebelah kiri atau unggah file PDF baru untuk melihat hasil ekstraksi.</p>
+              <div class="feature-pills">
+                <span class="pill">Preservasi Kolom Alami</span>
+                <span class="pill">Tabel Markdown Lengkap</span>
+                <span class="pill">Penanda Halaman Asli</span>
+                <span class="pill">Struktur Siap AI</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Raw Markdown Tab Content -->
+        <div id="view-raw" class="raw-pane hidden" role="tabpanel" aria-labelledby="tab-raw">
+          <textarea id="raw-content" class="raw-textarea" readonly spellcheck="false" placeholder="Teks mentah Markdown akan tampil di sini..."></textarea>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Notification Toast -->
+  <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+services:
+  papermarkdown-studio:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: papermarkdown-studio:latest
+    container_name: papermarkdown-studio
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./input_pdfs:/app/input_pdfs
+      - ./output_markdown:/app/output_markdown
+    environment:
+      - PORT=5000
+      - INPUT_DIR=/app/input_pdfs
+      - OUTPUT_DIR=/app/output_markdown
+    restart: unless-stopped
