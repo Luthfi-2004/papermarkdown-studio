@@ -37,10 +37,18 @@ document.addEventListener("DOMContentLoaded", () => {
   const themeToggleBtn = document.getElementById("theme-toggle-btn");
   const toastEl = document.getElementById("toast");
   
+  // Mobile Dynamic Elements (R-03)
+  const appContainer = document.getElementById("app-container");
+  const mobileBackBtn = document.getElementById("mobile-back-btn");
+  const mobileNavList = document.getElementById("mobile-nav-list");
+  const mobileNavUpload = document.getElementById("mobile-nav-upload");
+  const mobileNavReader = document.getElementById("mobile-nav-reader");
+  
   let allDocuments = [];
   let currentSelectedMd = null;
   let fontScalePercent = 100;
   let isPresentationMode = false;
+  let activeMobileTab = "list";
   
   // 1. Theme Management (R-21, R-34)
   const savedTheme = localStorage.getItem("papermarkdown-theme") || "dark";
@@ -53,6 +61,36 @@ document.addEventListener("DOMContentLoaded", () => {
     localStorage.setItem("papermarkdown-theme", newTheme);
     showToast(`Tema beralih ke mode ${newTheme === "dark" ? "gelap" : "terang"}`);
   });
+  
+  // 1b. Dynamic Mobile View Controller (R-03)
+  function setMobileView(view) {
+    activeMobileTab = view;
+    if (appContainer) {
+      appContainer.setAttribute("data-mobile-view", view);
+    }
+    document.body.setAttribute("data-mobile-view", view);
+    
+    if (mobileNavList) mobileNavList.classList.toggle("active", view === "list");
+    if (mobileNavUpload) mobileNavUpload.classList.toggle("active", view === "upload");
+    if (mobileNavReader) mobileNavReader.classList.toggle("active", view === "reader");
+    
+    // Smooth scroll active panel to top
+    if (view === "reader") {
+      const renderedPane = document.getElementById("view-rendered");
+      if (renderedPane) renderedPane.scrollTop = 0;
+    } else if (view === "list") {
+      const docList = document.getElementById("doc-list");
+      if (docList) docList.scrollTop = 0;
+    }
+  }
+  
+  if (mobileNavList) mobileNavList.addEventListener("click", () => setMobileView("list"));
+  if (mobileNavUpload) mobileNavUpload.addEventListener("click", () => setMobileView("upload"));
+  if (mobileNavReader) mobileNavReader.addEventListener("click", () => setMobileView("reader"));
+  if (mobileBackBtn) mobileBackBtn.addEventListener("click", () => setMobileView("list"));
+  
+  // Initial mobile view
+  setMobileView("list");
   
   // 2. Font Zoom Controls for Family/Presentation Reading
   function updateFontScale() {
@@ -233,6 +271,11 @@ document.addEventListener("DOMContentLoaded", () => {
       
       copyBtn.disabled = false;
       downloadBtn.disabled = false;
+      
+      // Auto-transition to reader on mobile when a document is opened
+      if (window.innerWidth <= 768) {
+        setMobileView("reader");
+      }
     } catch (err) {
       console.error(err);
       showToast("Gagal memuat artikel", "error");
@@ -376,6 +419,11 @@ document.addEventListener("DOMContentLoaded", () => {
         
         const firstConverted = data.converted[0];
         await loadDocuments(firstConverted ? firstConverted.md_filename : null);
+        
+        // Auto-transition to reader on mobile after conversion
+        if (window.innerWidth <= 768 && firstConverted) {
+          setMobileView("reader");
+        }
       }, 1000);
       
     } catch (err) {

@@ -2,9 +2,9 @@
 <html lang="id" data-theme="dark">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
   <title>PaperMarkdown Studio : Layar Presentasi Dokumen Ilmiah Siap AI</title>
-  <meta name="description" content="Aplikasi konversi PDF artikel ilmiah ke format Markdown terstruktur dengan Layar Presentasi Glassmorphism yang nyaman dan ramah keluarga.">
+  <meta name="description" content="Aplikasi konversi PDF artikel ilmiah ke format Markdown terstruktur dengan Layar Presentasi Glassmorphism yang dinamis dan responsif di smartphone.">
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
@@ -16,7 +16,7 @@
   <header class="app-header">
     <div class="header-brand">
       <div class="brand-icon" aria-hidden="true">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
           <polyline points="14 2 14 8 20 8"></polyline>
           <line x1="16" y1="13" x2="8" y2="13"></line>
@@ -24,15 +24,15 @@
           <polyline points="10 9 9 9 8 9"></polyline>
         </svg>
       </div>
-      <div>
+      <div class="brand-text">
         <h1 class="brand-title">PaperMarkdown Studio</h1>
-        <p class="brand-subtitle">Layar Presentasi & Konversi PDF Ilmiah untuk Pemahaman AI</p>
+        <p class="brand-subtitle">Layar Presentasi & Konversi PDF Ilmiah</p>
       </div>
     </div>
 
     <div class="header-actions">
-      <!-- Status Badge -->
-      <div class="real-status-badge" id="engine-status">
+      <!-- Status Badge (Desktop & Tablet) -->
+      <div class="real-status-badge desktop-only" id="engine-status">
         <span class="status-indicator"></span>
         <span id="doc-counter">0 Dokumen Siap</span>
       </div>
@@ -59,10 +59,10 @@
 
   <!-- Main Layout -->
   <main class="app-container" id="app-container">
-    <!-- Left Column: Upload & Document Library -->
+    <!-- Left Column: Upload & Document Library (Mobile View: Tab 'list' or 'upload') -->
     <aside class="sidebar-panel" id="sidebar-panel">
       <!-- Upload Dropzone Card -->
-      <section class="panel-card upload-section">
+      <section class="panel-card upload-section" id="mobile-upload-card">
         <h2 class="section-title">Upload Artikel PDF</h2>
         <div id="dropzone" class="dropzone-area" tabindex="0" role="button" aria-label="Area Unggah File PDF. Klik atau seret file ke sini">
           <input type="file" id="file-input" accept=".pdf" multiple hidden>
@@ -75,7 +75,7 @@
               </svg>
             </div>
             <p class="dropzone-main-text">Tarik & lepas file PDF ke sini</p>
-            <p class="dropzone-sub-text">atau <span class="highlight-browse">pilih dari komputer Anda</span></p>
+            <p class="dropzone-sub-text">atau <span class="highlight-browse">pilih file dari memori</span></p>
           </div>
         </div>
 
@@ -92,7 +92,7 @@
       </section>
 
       <!-- Document List Card -->
-      <section class="panel-card list-section">
+      <section class="panel-card list-section" id="mobile-list-card">
         <div class="list-header">
           <h2 class="section-title">Koleksi Dokumen</h2>
           <span id="badge-count" class="counter-badge">0 file</span>
@@ -120,13 +120,22 @@
     </aside>
 
     <!-- Right Column: Transparent Presentation Screen in Glassmorphism style -->
-    <section class="content-panel">
+    <section class="content-panel" id="content-panel">
       <!-- The Frosted Glass Presentation Screen Frame -->
       <div class="presentation-screen glass-panel" id="presentation-screen">
         
         <!-- Screen Top Glass Header Bar -->
         <div class="screen-top-bar">
-          <div class="screen-traffic-lights" aria-hidden="true">
+          <!-- Back button on mobile to return to list -->
+          <button id="mobile-back-btn" class="mobile-back-btn mobile-only" aria-label="Kembali ke Daftar Dokumen">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="19" y1="12" x2="5" y2="12"></line>
+              <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+            <span>Daftar</span>
+          </button>
+
+          <div class="screen-traffic-lights desktop-only" aria-hidden="true">
             <span class="light-dot red"></span>
             <span class="light-dot yellow"></span>
             <span class="light-dot green"></span>
@@ -134,7 +143,7 @@
 
           <div class="screen-title-area">
             <span class="screen-pill-tag">Layar Presentasi</span>
-            <h2 id="active-doc-title" class="active-title">Pilih dokumen di panel kiri untuk membuka layar baca</h2>
+            <h2 id="active-doc-title" class="active-title">Pilih dokumen untuk membaca hasil</h2>
           </div>
 
           <div class="screen-controls">
@@ -145,8 +154,8 @@
               <button id="font-increase-btn" class="glass-mini-btn" aria-label="Perbesar Ukuran Teks">A+</button>
             </div>
 
-            <!-- Presentation Fullscreen Toggle -->
-            <button id="toggle-presentation-btn" class="glass-mini-btn icon-only" title="Mode Layar Penuh / Fokus Membaca" aria-label="Mode Fokus Membaca">
+            <!-- Presentation Fullscreen Toggle (Desktop) -->
+            <button id="toggle-presentation-btn" class="glass-mini-btn icon-only desktop-only" title="Mode Layar Penuh / Fokus Membaca" aria-label="Mode Fokus Membaca">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="15 3 21 3 21 9"></polyline>
                 <polyline points="9 21 3 21 3 15"></polyline>
@@ -196,13 +205,13 @@
               <!-- Family-Friendly Welcome Screen -->
               <div class="welcome-box">
                 <div class="welcome-icon-bubble" aria-hidden="true">
-                  <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
                     <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
                   </svg>
                 </div>
                 <h3>Selamat Datang di PaperMarkdown Studio</h3>
-                <p>Ubah dokumen PDF ilmiah menjadi layar baca yang nyaman, rapi, dan mudah dipahami bersama keluarga, rekan kerja, maupun untuk prompt analisis AI.</p>
+                <p>Ubah artikel ilmiah PDF menjadi layar baca yang nyaman, rapi, dan mudah dipahami bersama keluarga, rekan, atau untuk prompt analisis AI.</p>
                 <div class="feature-pills">
                   <span class="pill">✨ Baca Rapi Multi-Kolom</span>
                   <span class="pill">📊 Tabel Presisi Terformat</span>
@@ -222,6 +231,39 @@
       </div>
     </section>
   </main>
+
+  <!-- Mobile Floating Glass Navigation Dock (R-03 Compliant) -->
+  <nav class="mobile-nav-dock glass-dock mobile-only" aria-label="Navigasi Utama Ponsel">
+    <button id="mobile-nav-list" class="dock-item active" aria-label="Buka Koleksi Dokumen">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="8" y1="6" x2="21" y2="6"></line>
+        <line x1="8" y1="12" x2="21" y2="12"></line>
+        <line x1="8" y1="18" x2="21" y2="18"></line>
+        <line x1="3" y1="6" x2="3.01" y2="6"></line>
+        <line x1="3" y1="12" x2="3.01" y2="12"></line>
+        <line x1="3" y1="18" x2="3.01" y2="18"></line>
+      </svg>
+      <span>Koleksi</span>
+    </button>
+
+    <button id="mobile-nav-upload" class="dock-item" aria-label="Buka Menu Unggah PDF">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+        <polyline points="17 8 12 3 7 8"></polyline>
+        <line x1="12" y1="3" x2="12" y2="15"></line>
+      </svg>
+      <span>Upload</span>
+    </button>
+
+    <button id="mobile-nav-reader" class="dock-item" aria-label="Buka Layar Baca">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+        <line x1="8" y1="21" x2="16" y2="21"></line>
+        <line x1="12" y1="17" x2="12" y2="21"></line>
+      </svg>
+      <span>Layar Baca</span>
+    </button>
+  </nav>
 
   <!-- Notification Toast -->
   <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
