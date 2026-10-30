@@ -10,6 +10,7 @@ services:
     volumes:
       - ./input_pdfs:/app/input_pdfs
       - ./output_markdown:/app/output_markdown
+      - ./app:/app/app
     environment:
       - PORT=5000
       - INPUT_DIR=/app/input_pdfs

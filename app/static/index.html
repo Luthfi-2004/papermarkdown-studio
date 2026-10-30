@@ -3,11 +3,15 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PaperMarkdown Studio : Konversi Artikel PDF ke Markdown Terstruktur untuk AI</title>
-  <meta name="description" content="Aplikasi konversi PDF artikel ilmiah ke Markdown dengan layout 2-kolom utuh dan tabel presisi untuk analisis AI.">
+  <title>PaperMarkdown Studio : Layar Presentasi Dokumen Ilmiah Siap AI</title>
+  <meta name="description" content="Aplikasi konversi PDF artikel ilmiah ke format Markdown terstruktur dengan Layar Presentasi Glassmorphism yang nyaman dan ramah keluarga.">
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
+  <!-- Ambient Backdrop Lights for Glassmorphism Refraction -->
+  <div class="ambient-glow glow-top" aria-hidden="true"></div>
+  <div class="ambient-glow glow-bottom" aria-hidden="true"></div>
+
   <!-- Header / Top Bar -->
   <header class="app-header">
     <div class="header-brand">
@@ -22,7 +26,7 @@
       </div>
       <div>
         <h1 class="brand-title">PaperMarkdown Studio</h1>
-        <p class="brand-subtitle">Konverter PDF Penelitian ke Markdown Khusus Pemahaman AI</p>
+        <p class="brand-subtitle">Layar Presentasi & Konversi PDF Ilmiah untuk Pemahaman AI</p>
       </div>
     </div>
 
@@ -30,10 +34,10 @@
       <!-- Status Badge -->
       <div class="real-status-badge" id="engine-status">
         <span class="status-indicator"></span>
-        <span id="doc-counter">15 Dokumen Siap</span>
+        <span id="doc-counter">0 Dokumen Siap</span>
       </div>
 
-      <!-- Theme Toggle -->
+      <!-- Theme Toggle Button -->
       <button id="theme-toggle-btn" class="theme-btn" aria-label="Ganti Tema Terang atau Gelap" title="Ganti Tema">
         <svg class="sun-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="5"></circle>
@@ -54,26 +58,28 @@
   </header>
 
   <!-- Main Layout -->
-  <main class="app-container">
-    <!-- Left Column: Upload & Document Manager -->
-    <aside class="sidebar-panel">
+  <main class="app-container" id="app-container">
+    <!-- Left Column: Upload & Document Library -->
+    <aside class="sidebar-panel" id="sidebar-panel">
       <!-- Upload Dropzone Card -->
       <section class="panel-card upload-section">
-        <h2 class="section-title">Upload Artikel PDF Baru</h2>
+        <h2 class="section-title">Upload Artikel PDF</h2>
         <div id="dropzone" class="dropzone-area" tabindex="0" role="button" aria-label="Area Unggah File PDF. Klik atau seret file ke sini">
           <input type="file" id="file-input" accept=".pdf" multiple hidden>
           <div class="dropzone-content">
-            <svg class="upload-icon" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-              <polyline points="17 8 12 3 7 8"></polyline>
-              <line x1="12" y1="3" x2="12" y2="15"></line>
-            </svg>
-            <p class="dropzone-main-text">Tarik dan lepas file PDF ke sini</p>
-            <p class="dropzone-sub-text">atau <span class="highlight-browse">pilih file dari komputer</span></p>
+            <div class="upload-icon-wrapper" aria-hidden="true">
+              <svg class="upload-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="17 8 12 3 7 8"></polyline>
+                <line x1="12" y1="3" x2="12" y2="15"></line>
+              </svg>
+            </div>
+            <p class="dropzone-main-text">Tarik & lepas file PDF ke sini</p>
+            <p class="dropzone-sub-text">atau <span class="highlight-browse">pilih dari komputer Anda</span></p>
           </div>
         </div>
 
-        <!-- Upload Progress Indicator (Hidden by default) -->
+        <!-- Upload Progress Indicator -->
         <div id="upload-progress-container" class="progress-box hidden" aria-live="polite">
           <div class="progress-header">
             <span id="upload-status-label" class="progress-label">Mengonversi dokumen...</span>
@@ -88,8 +94,8 @@
       <!-- Document List Card -->
       <section class="panel-card list-section">
         <div class="list-header">
-          <h2 class="section-title">Daftar Dokumen Penelitian</h2>
-          <span id="badge-count" class="counter-badge">15 file</span>
+          <h2 class="section-title">Koleksi Dokumen</h2>
+          <span id="badge-count" class="counter-badge">0 file</span>
         </div>
 
         <!-- Search / Filter input -->
@@ -98,7 +104,7 @@
             <circle cx="11" cy="11" r="8"></circle>
             <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
           </svg>
-          <input type="text" id="search-input" placeholder="Cari nama paper, saham, atau metode..." aria-label="Cari dokumen">
+          <input type="text" id="search-input" placeholder="Cari nama paper, topik, atau metode..." aria-label="Cari dokumen">
         </div>
 
         <!-- Document Items Container -->
@@ -108,79 +114,111 @@
 
         <!-- Empty state for search -->
         <div id="empty-search" class="empty-state hidden">
-          <p>Tidak ada dokumen yang sesuai dengan kata kunci pencarian.</p>
+          <p>Tidak ada dokumen yang sesuai dengan pencarian Anda.</p>
         </div>
       </section>
     </aside>
 
-    <!-- Right Column: Document Viewer & Actions -->
+    <!-- Right Column: Transparent Presentation Screen in Glassmorphism style -->
     <section class="content-panel">
-      <!-- Viewer Header Bar -->
-      <div class="viewer-header">
-        <div class="active-file-meta">
-          <span class="file-format-tag">Markdown</span>
-          <h2 id="active-doc-title" class="active-title">Pilih dokumen di panel kiri untuk membaca hasil konversi</h2>
+      <!-- The Frosted Glass Presentation Screen Frame -->
+      <div class="presentation-screen glass-panel" id="presentation-screen">
+        
+        <!-- Screen Top Glass Header Bar -->
+        <div class="screen-top-bar">
+          <div class="screen-traffic-lights" aria-hidden="true">
+            <span class="light-dot red"></span>
+            <span class="light-dot yellow"></span>
+            <span class="light-dot green"></span>
+          </div>
+
+          <div class="screen-title-area">
+            <span class="screen-pill-tag">Layar Presentasi</span>
+            <h2 id="active-doc-title" class="active-title">Pilih dokumen di panel kiri untuk membuka layar baca</h2>
+          </div>
+
+          <div class="screen-controls">
+            <!-- Font Zoom Controls -->
+            <div class="font-zoom-group" title="Atur kenyamanan ukuran teks">
+              <button id="font-decrease-btn" class="glass-mini-btn" aria-label="Perkecil Ukuran Teks">A-</button>
+              <span id="font-size-label" class="font-size-text">100%</span>
+              <button id="font-increase-btn" class="glass-mini-btn" aria-label="Perbesar Ukuran Teks">A+</button>
+            </div>
+
+            <!-- Presentation Fullscreen Toggle -->
+            <button id="toggle-presentation-btn" class="glass-mini-btn icon-only" title="Mode Layar Penuh / Fokus Membaca" aria-label="Mode Fokus Membaca">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="15 3 21 3 21 9"></polyline>
+                <polyline points="9 21 3 21 3 15"></polyline>
+                <line x1="21" y1="3" x2="14" y2="10"></line>
+                <line x1="3" y1="21" x2="10" y2="14"></line>
+              </svg>
+            </button>
+          </div>
         </div>
 
-        <!-- Action Buttons -->
-        <div class="viewer-actions">
-          <!-- View Mode Tabs -->
+        <!-- Secondary Glass Toolbar: Mode Tabs & Actions -->
+        <div class="screen-toolbar">
           <div class="view-mode-tabs" role="tablist">
             <button id="tab-rendered" class="tab-btn active" role="tab" aria-selected="true" aria-controls="view-rendered">
               Tampilan Terformat
             </button>
             <button id="tab-raw" class="tab-btn" role="tab" aria-selected="false" aria-controls="view-raw">
-              Kode Markdown
+              Sumber Markdown
             </button>
           </div>
 
-          <!-- Utility Buttons -->
-          <button id="copy-btn" class="action-btn" title="Salin seluruh isi Markdown ke Clipboard" disabled>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-            </svg>
-            <span id="copy-btn-text">Salin Teks</span>
-          </button>
-
-          <button id="download-btn" class="action-btn" title="Unduh file .md ke komputer Anda" disabled>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-              <polyline points="7 10 12 15 17 10"></polyline>
-              <line x1="12" y1="15" x2="12" y2="3"></line>
-            </svg>
-            <span>Unduh .md</span>
-          </button>
-        </div>
-      </div>
-
-      <!-- Viewer Content Panes -->
-      <div class="viewer-body">
-        <!-- Rendered Tab Content -->
-        <div id="view-rendered" class="rendered-pane" role="tabpanel" aria-labelledby="tab-rendered">
-          <div id="rendered-content" class="markdown-body">
-            <!-- Initial Welcome / Empty State -->
-            <div class="welcome-box">
-              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="welcome-icon">
-                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
-                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+          <div class="toolbar-actions">
+            <button id="copy-btn" class="glass-action-btn" title="Salin seluruh isi Markdown ke clipboard" disabled>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
               </svg>
-              <h3>Selamat Datang di PaperMarkdown Studio</h3>
-              <p>Pilih salah satu dari 15 artikel di sebelah kiri atau unggah file PDF baru untuk melihat hasil ekstraksi.</p>
-              <div class="feature-pills">
-                <span class="pill">Preservasi Kolom Alami</span>
-                <span class="pill">Tabel Markdown Lengkap</span>
-                <span class="pill">Penanda Halaman Asli</span>
-                <span class="pill">Struktur Siap AI</span>
-              </div>
-            </div>
+              <span id="copy-btn-text">Salin Teks</span>
+            </button>
+
+            <button id="download-btn" class="glass-action-btn primary" title="Unduh file .md ke komputer Anda" disabled>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+              </svg>
+              <span>Unduh .md</span>
+            </button>
           </div>
         </div>
 
-        <!-- Raw Markdown Tab Content -->
-        <div id="view-raw" class="raw-pane hidden" role="tabpanel" aria-labelledby="tab-raw">
-          <textarea id="raw-content" class="raw-textarea" readonly spellcheck="false" placeholder="Teks mentah Markdown akan tampil di sini..."></textarea>
+        <!-- The Presentation Viewport -->
+        <div class="screen-viewport" id="screen-viewport">
+          <!-- Rendered Tab Content -->
+          <div id="view-rendered" class="rendered-pane" role="tabpanel" aria-labelledby="tab-rendered">
+            <div id="rendered-content" class="markdown-body">
+              <!-- Family-Friendly Welcome Screen -->
+              <div class="welcome-box">
+                <div class="welcome-icon-bubble" aria-hidden="true">
+                  <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
+                    <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
+                  </svg>
+                </div>
+                <h3>Selamat Datang di PaperMarkdown Studio</h3>
+                <p>Ubah dokumen PDF ilmiah menjadi layar baca yang nyaman, rapi, dan mudah dipahami bersama keluarga, rekan kerja, maupun untuk prompt analisis AI.</p>
+                <div class="feature-pills">
+                  <span class="pill">✨ Baca Rapi Multi-Kolom</span>
+                  <span class="pill">📊 Tabel Presisi Terformat</span>
+                  <span class="pill">📑 Penanda Nomor Halaman</span>
+                  <span class="pill">🤖 Ekstraksi Siap AI</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Raw Markdown Tab Content -->
+          <div id="view-raw" class="raw-pane hidden" role="tabpanel" aria-labelledby="tab-raw">
+            <textarea id="raw-content" class="raw-textarea" readonly spellcheck="false" placeholder="Teks sumber Markdown akan tampil di sini..."></textarea>
+          </div>
         </div>
+
       </div>
     </section>
   </main>

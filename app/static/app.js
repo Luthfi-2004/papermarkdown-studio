@@ -1,4 +1,4 @@
-// PaperMarkdown Studio - Client Logic
+// PaperMarkdown Studio - Family-Friendly Glassmorphism Presentation UI Logic
 
 document.addEventListener("DOMContentLoaded", () => {
   // Elements
@@ -20,6 +20,13 @@ document.addEventListener("DOMContentLoaded", () => {
   const copyBtnText = document.getElementById("copy-btn-text");
   const downloadBtn = document.getElementById("download-btn");
   
+  const fontDecreaseBtn = document.getElementById("font-decrease-btn");
+  const fontIncreaseBtn = document.getElementById("font-increase-btn");
+  const fontSizeLabel = document.getElementById("font-size-label");
+  const togglePresentationBtn = document.getElementById("toggle-presentation-btn");
+  const sidebarPanel = document.getElementById("sidebar-panel");
+  const presentationScreen = document.getElementById("presentation-screen");
+  
   const dropzone = document.getElementById("dropzone");
   const fileInput = document.getElementById("file-input");
   const progressBox = document.getElementById("upload-progress-container");
@@ -32,6 +39,8 @@ document.addEventListener("DOMContentLoaded", () => {
   
   let allDocuments = [];
   let currentSelectedMd = null;
+  let fontScalePercent = 100;
+  let isPresentationMode = false;
   
   // 1. Theme Management (R-21, R-34)
   const savedTheme = localStorage.getItem("papermarkdown-theme") || "dark";
@@ -42,10 +51,55 @@ document.addEventListener("DOMContentLoaded", () => {
     const newTheme = currentTheme === "dark" ? "light" : "dark";
     document.documentElement.setAttribute("data-theme", newTheme);
     localStorage.setItem("papermarkdown-theme", newTheme);
-    showToast(`Tema diubah ke mode ${newTheme === "dark" ? "gelap" : "terang"}`);
+    showToast(`Tema beralih ke mode ${newTheme === "dark" ? "gelap" : "terang"}`);
   });
   
-  // 2. Tab Navigation (R-26, R-32)
+  // 2. Font Zoom Controls for Family/Presentation Reading
+  function updateFontScale() {
+    fontSizeLabel.textContent = `${fontScalePercent}%`;
+    document.documentElement.style.setProperty("--doc-font-scale", `${fontScalePercent / 100}rem`);
+  }
+  
+  fontDecreaseBtn.addEventListener("click", () => {
+    if (fontScalePercent > 80) {
+      fontScalePercent -= 10;
+      updateFontScale();
+    }
+  });
+  
+  fontIncreaseBtn.addEventListener("click", () => {
+    if (fontScalePercent < 150) {
+      fontScalePercent += 10;
+      updateFontScale();
+    }
+  });
+  
+  // 3. Presentation Focus Mode (Hides/Shows Sidebar)
+  togglePresentationBtn.addEventListener("click", () => {
+    isPresentationMode = !isPresentationMode;
+    if (isPresentationMode) {
+      sidebarPanel.classList.add("hidden-presentation");
+      togglePresentationBtn.classList.add("active");
+      togglePresentationBtn.setAttribute("title", "Kembalikan Tampilan Standar");
+      showToast("Mode Layar Penuh Presentasi Aktif (Tekan Esc untuk keluar)");
+    } else {
+      sidebarPanel.classList.remove("hidden-presentation");
+      togglePresentationBtn.classList.remove("active");
+      togglePresentationBtn.setAttribute("title", "Mode Layar Penuh / Fokus Membaca");
+    }
+  });
+  
+  // Esc key to exit presentation mode
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && isPresentationMode) {
+      isPresentationMode = false;
+      sidebarPanel.classList.remove("hidden-presentation");
+      togglePresentationBtn.classList.remove("active");
+      togglePresentationBtn.setAttribute("title", "Mode Layar Penuh / Fokus Membaca");
+    }
+  });
+  
+  // 4. Tab Navigation
   function switchTab(mode) {
     if (mode === "rendered") {
       tabRenderedBtn.classList.add("active");
@@ -67,7 +121,7 @@ document.addEventListener("DOMContentLoaded", () => {
   tabRenderedBtn.addEventListener("click", () => switchTab("rendered"));
   tabRawBtn.addEventListener("click", () => switchTab("raw"));
   
-  // 3. Load Documents from API
+  // 5. Load Documents from API
   async function loadDocuments(selectAfterLoad = null) {
     try {
       const res = await fetch("/api/documents");
@@ -85,7 +139,6 @@ document.addEventListener("DOMContentLoaded", () => {
       docCounterEl.textContent = `${count} Dokumen Siap`;
       badgeCountEl.textContent = `${count} file`;
       
-      // Auto select first document if none selected
       if (selectAfterLoad) {
         const item = allDocuments.find(d => d.md_filename === selectAfterLoad || d.filename === selectAfterLoad);
         if (item && item.md_filename) {
@@ -103,7 +156,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
   
-  // 4. Render Document List
+  // 6. Render Document List
   function renderDocList(docs) {
     docListEl.innerHTML = "";
     
@@ -147,11 +200,10 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
   
-  // 5. Select & Display Document
+  // 7. Select & Display Document
   async function selectDocument(mdFilename, origName) {
     currentSelectedMd = mdFilename;
     
-    // Update active class in list
     document.querySelectorAll(".doc-item").forEach(el => el.classList.remove("active"));
     const items = Array.from(docListEl.children);
     const matched = allDocuments.findIndex(d => d.md_filename === mdFilename);
@@ -160,7 +212,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     
     activeTitleEl.textContent = origName ? origName.replace('.pdf', '') : mdFilename;
-    renderedContentEl.innerHTML = `<div class="empty-state"><p>Memuat konten artikel...</p></div>`;
+    renderedContentEl.innerHTML = `<div class="empty-state"><p>Mempersiapkan layar presentasi artikel...</p></div>`;
     rawContentEl.value = "Memuat...";
     
     copyBtn.disabled = true;
@@ -187,7 +239,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
   
-  // 6. Convert Specific Document
+  // 8. Convert Specific Document
   async function convertSingle(pdfFilename) {
     showToast(`Mengonversi ${pdfFilename}...`);
     try {
@@ -205,7 +257,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
   
-  // 7. Search Filter
+  // 9. Search Filter
   searchInput.addEventListener("input", (e) => {
     const q = e.target.value.toLowerCase().trim();
     if (!q) {
@@ -216,7 +268,7 @@ document.addEventListener("DOMContentLoaded", () => {
     renderDocList(filtered);
   });
   
-  // 8. Copy to Clipboard (R-26)
+  // 10. Copy to Clipboard
   copyBtn.addEventListener("click", async () => {
     if (!rawContentEl.value) return;
     try {
@@ -227,20 +279,19 @@ document.addEventListener("DOMContentLoaded", () => {
         copyBtnText.textContent = "Salin Teks";
       }, 2000);
     } catch (err) {
-      // Fallback
       rawContentEl.select();
       document.execCommand("copy");
       showToast("Markdown berhasil disalin", "success");
     }
   });
   
-  // 9. Download .md File (R-26)
+  // 11. Download .md File
   downloadBtn.addEventListener("click", () => {
     if (!currentSelectedMd) return;
     window.location.href = `/api/download/${encodeURIComponent(currentSelectedMd)}`;
   });
   
-  // 10. Drag & Drop Upload
+  // 12. Drag & Drop Upload
   dropzone.addEventListener("click", () => fileInput.click());
   
   dropzone.addEventListener("keydown", (e) => {
@@ -287,7 +338,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const formData = new FormData();
     validFiles.forEach(f => formData.append("files[]", f));
     
-    // Show Progress Box
     progressBox.classList.remove("hidden");
     progressBar.style.width = "20%";
     percentLabel.textContent = "20%";
@@ -324,7 +374,6 @@ document.addEventListener("DOMContentLoaded", () => {
         progressBar.style.width = "0%";
         fileInput.value = "";
         
-        // Reload and select first newly converted file
         const firstConverted = data.converted[0];
         await loadDocuments(firstConverted ? firstConverted.md_filename : null);
       }, 1000);
@@ -336,7 +385,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
   
-  // 11. Helper Toast Notification
   function showToast(msg, type = "info") {
     toastEl.textContent = msg;
     toastEl.className = `toast ${type}`;
