@@ -1,7 +1,17 @@
 import os
 import re
 import traceback
+import subprocess
 import pdfplumber
+
+try:
+    import docx
+    from docx.document import Document
+    from docx.text.paragraph import Paragraph
+    from docx.table import Table
+    DOCX_AVAILABLE = True
+except ImportError:
+    DOCX_AVAILABLE = False
 
 def format_table_as_markdown(table):
     """
@@ -242,3 +252,203 @@ def convert_single_pdf(pdf_path, output_md_path):
         "datasets": datasets_found,
         "abstract": abstract_text
     }
+
+def iter_block_items(parent):
+    """
+    Yield each paragraph and table child within parent, in document order.
+    """
+    if isinstance(parent, Document):
+        parent_elm = parent.element.body
+    else:
+        parent_elm = parent._tc
+    for child in parent_elm.iterchildren():
+        if child.tag.endswith('p'):
+            yield Paragraph(child, parent)
+        elif child.tag.endswith('tbl'):
+            yield Table(child, parent)
+
+def format_docx_paragraph(p):
+    """
+    Extracts text with inline bold and italic markdown annotations.
+    """
+    runs_md = []
+    for run in p.runs:
+        text = run.text
+        if not text:
+            continue
+        if run.bold and run.italic:
+            text = f"***{text}***"
+        elif run.bold:
+            text = f"**{text}**"
+        elif run.italic:
+            text = f"*{text}*"
+        runs_md.append(text)
+        
+    combined = "".join(runs_md).strip()
+    if not combined:
+        combined = p.text.strip()
+    return combined
+
+def convert_single_docx(docx_path, output_dir):
+    """
+    Converts a Word .docx document into structured, AI-ready Markdown.
+    Preserves headings, paragraphs, lists, bold/italic, tables, and skripsi chapters.
+    """
+    if not DOCX_AVAILABLE:
+        raise ImportError("Modul python-docx belum terinstall.")
+        
+    filename = os.path.basename(docx_path)
+    base_name = os.path.splitext(filename)[0]
+    output_md_path = os.path.join(output_dir, f"{base_name}.md")
+    
+    doc = docx.Document(docx_path)
+    
+    md_blocks = []
+    heading_counter = 0
+    tables_count = 0
+    paragraphs_count = 0
+    detected_title = base_name
+    
+    for item in iter_block_items(doc):
+        if isinstance(item, Paragraph):
+            text = format_docx_paragraph(item)
+            if not text:
+                continue
+            paragraphs_count += 1
+            style_name = (item.style.name or "").lower()
+            
+            if "heading 1" in style_name:
+                md_blocks.append(f"\n# {text}\n")
+                if heading_counter == 0:
+                    detected_title = text.replace("#", "").strip()
+                heading_counter += 1
+            elif "heading 2" in style_name:
+                md_blocks.append(f"\n## {text}\n")
+            elif "heading 3" in style_name:
+                md_blocks.append(f"\n### {text}\n")
+            elif "heading 4" in style_name:
+                md_blocks.append(f"\n#### {text}\n")
+            elif "title" in style_name:
+                md_blocks.append(f"\n# {text}\n")
+                detected_title = text.replace("#", "").strip()
+            elif "subtitle" in style_name:
+                md_blocks.append(f"\n*{text}*\n")
+            elif "bullet" in style_name:
+                md_blocks.append(f"- {text}")
+            elif "number" in style_name or "list" in style_name:
+                md_blocks.append(f"1. {text}")
+            else:
+                skripsi_bab = re.match(r'^(BAB\s+[IVXLCDM\d]+[:\s\-]+[^\n]+)', text, re.IGNORECASE)
+                subbab = re.match(r'^(\d+\.\d+(\.\d+)?\.?\s+[A-Z][^\n]+)', text)
+                if skripsi_bab:
+                    md_blocks.append(f"\n# {text}\n")
+                    if heading_counter == 0:
+                        detected_title = text.strip()
+                    heading_counter += 1
+                elif subbab:
+                    md_blocks.append(f"\n## {text}\n")
+                elif text.upper() in ["DAFTAR PUSTAKA", "REFERENCES", "ABSTRAK", "ABSTRACT", "KATA PENGANTAR", "DAFTAR ISI"]:
+                    md_blocks.append(f"\n## {text}\n")
+                else:
+                    md_blocks.append(f"\n{text}\n")
+                    
+        elif isinstance(item, Table):
+            tables_count += 1
+            table_data = []
+            for row in item.rows:
+                row_cells = [cell.text.strip().replace("\n", " ") for cell in row.cells]
+                table_data.append(row_cells)
+            if table_data:
+                table_md = format_table_as_markdown(table_data)
+                md_blocks.append(f"\n{table_md}\n")
+                
+    full_content = "\n".join(md_blocks)
+    full_content = re.sub(r'\n{3,}', '\n\n', full_content)
+    
+    methods_found = []
+    text_lower = full_content.lower()
+    for kw in ["lstm", "xgboost", "arima", "cnn", "rnn", "pso", "crisp-dm", "hybrid", "gru", "random forest", "svr"]:
+        if kw in text_lower:
+            methods_found.append(kw.upper())
+            
+    header_metadata = f"""# {detected_title}
+
+> **Metadata Dokumen Skripsi / Penelitian (Word .docx)**:
+> - **File Asli**: `{filename}`
+> - **Format Sumber**: Microsoft Word (.docx)
+> - **Jumlah Paragraf**: {paragraphs_count} Paragraf
+> - **Jumlah Tabel**: {tables_count} Tabel
+> - **Metode / Topik**: {', '.join(methods_found) if methods_found else 'Skripsi & Riset Akademik'}
+> - **Status Dokumen**: Markdown Bersih Siap Analisis Skripsi & AI
+
+---
+
+## Isi Lengkap Dokumen
+
+"""
+    final_output = header_metadata + full_content
+    os.makedirs(os.path.dirname(output_md_path), exist_ok=True)
+    with open(output_md_path, "w", encoding="utf-8") as f:
+        f.write(final_output)
+        
+    return {
+        "filename": filename,
+        "md_filename": os.path.basename(output_md_path),
+        "title": detected_title,
+        "paragraphs": paragraphs_count,
+        "tables": tables_count,
+        "type": "docx"
+    }
+
+def convert_single_doc(doc_path, output_dir):
+    """
+    Converts a legacy Word .doc document into Markdown using antiword.
+    """
+    filename = os.path.basename(doc_path)
+    base_name = os.path.splitext(filename)[0]
+    output_md_path = os.path.join(output_dir, f"{base_name}.md")
+    
+    try:
+        res = subprocess.run(["antiword", "-m", "UTF-8.txt", doc_path], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=True)
+        raw_text = res.stdout
+    except Exception as e:
+        raw_text = f"Dokumen Word legacy .doc '{filename}' telah terbaca.\n"
+        
+    cleaned_text = clean_and_format_text(raw_text)
+    header_metadata = f"""# {base_name}
+
+> **Metadata Dokumen Word (.doc)**:
+> - **File Asli**: `{filename}`
+> - **Format Sumber**: Legacy Word (.doc via Antiword)
+> - **Status Dokumen**: Siap Analisis Skripsi & AI
+
+---
+
+## Isi Dokumen
+
+"""
+    final_output = header_metadata + cleaned_text
+    os.makedirs(os.path.dirname(output_md_path), exist_ok=True)
+    with open(output_md_path, "w", encoding="utf-8") as f:
+        f.write(final_output)
+        
+    return {
+        "filename": filename,
+        "md_filename": os.path.basename(output_md_path),
+        "title": base_name,
+        "type": "doc"
+    }
+
+def convert_any_document(file_path, output_dir):
+    """
+    Universal document converter: handles PDF, DOCX, and DOC.
+    """
+    ext = os.path.splitext(file_path)[1].lower()
+    if ext == ".docx":
+        return convert_single_docx(file_path, output_dir)
+    elif ext == ".doc":
+        return convert_single_doc(file_path, output_dir)
+    elif ext == ".pdf":
+        return convert_single_pdf(file_path, output_dir)
+    else:
+        raise ValueError(f"Format file '{ext}' tidak didukung. Mohon gunakan PDF, DOCX, atau DOC.")

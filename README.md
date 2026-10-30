@@ -16,12 +16,14 @@ Sebagian besar alat ekstraksi PDF standar (*naive parser*) memecah dokumen ilmia
 2. **Tabel Rusak**: Angka-angka metrik penting (seperti RMSE, MAE, nilai p, parameter) terpencar tanpa format tabel yang jelas.
 3. **Kata Terpenggal**: Tanda hubung di ujung baris memotong kata ilmiah (misal `predik-` di baris 1 dan `si` di baris 2).
 
-**PaperMarkdown Studio** memecahkan masalah ini dengan sistem rekonstruksi layout pintar:
-- ✅ **Deteksi Kolom Alami (*Gutter Detection*)**: Membaca kolom kiri sampai tuntas sebelum membaca kolom kanan.
+**PaperMarkdown Studio** memecahkan masalah ini dengan sistem rekonstruksi layout pintar dan perangkat bantu skripsi:
+- ✅ **Dukungan PDF & Microsoft Word (.docx / .doc)**: Ubah artikel jurnal PDF maupun draf naskah skripsi Word menjadi Markdown bersih siap AI.
+- ✅ **Deteksi Kolom Alami (*Gutter Detection*)**: Membaca kolom kiri sampai tuntas sebelum membaca kolom kanan pada paper jurnal ilmiah.
 - ✅ **Preservasi Tabel Terformat**: Mengubah tabel dokumen menjadi tabel Markdown (`| Kolom | ... |`) yang presisi.
-- ✅ **Penanda Halaman Asli (`<!-- PAGE X START -->`)**: Memudahkan AI mengutip nomor halaman sumber secara akurat.
-- ✅ **Metadata & Ringkasan Khusus AI**: Otomatis mengekstrak judul, abstrak, metode terdeteksi, dan fokus objek penelitian ke dalam blok metadata di awal dokumen.
-- ✅ **Web UI Interaktif + CLI**: Upload PDF lewat browser atau jalankan konversi batch lewat terminal.
+- ✅ **Asisten Prompt Skripsi AI**: Template prompt siap salin ke ChatGPT/Claude/Gemini untuk evaluasi Bab 1 (Latar Belakang), Bab 2 (Tinjauan Pustaka), Bab 3 (Metodologi LSTM/XGBoost), Bab 4 (Hasil Pembahasan), Bab 5 (Kesimpulan), dan Format Sitasi.
+- ✅ **Daftar Isi & Navigasi Bab Otomatis**: Drawer outline interaktif untuk melompat langsung ke Bab atau Subbab tertentu.
+- ✅ **Statistik Skripsi**: Perhitungan jumlah kata, estimasi waktu baca, jumlah bab, dan jumlah tabel secara instan.
+- ✅ **Layar Presentasi Glassmorphism & Responsif Mobile**: Navigasi dinamis dengan Floating Glass Dock di smartphone dan layar baca fokus di desktop.
 - ✅ **100% Berjalan di Docker**: Tanpa perlu instalasi Python lokal di komputer Anda.
 
 ---

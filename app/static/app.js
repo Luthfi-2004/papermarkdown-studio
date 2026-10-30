@@ -43,12 +43,34 @@ document.addEventListener("DOMContentLoaded", () => {
   const mobileNavList = document.getElementById("mobile-nav-list");
   const mobileNavUpload = document.getElementById("mobile-nav-upload");
   const mobileNavReader = document.getElementById("mobile-nav-reader");
+
+  // Skripsi Tools & Outline Elements
+  const skripsiToolsBtn = document.getElementById("skripsi-tools-btn");
+  const toggleOutlineBtn = document.getElementById("toggle-outline-btn");
+  const outlineDrawer = document.getElementById("outline-drawer");
+  const closeOutlineBtn = document.getElementById("close-outline-btn");
+  const outlineList = document.getElementById("outline-list");
+
+  const skripsiStatsBar = document.getElementById("skripsi-stats-bar");
+  const statWords = document.getElementById("stat-words");
+  const statReading = document.getElementById("stat-reading");
+  const statHeadings = document.getElementById("stat-headings");
+  const statTables = document.getElementById("stat-tables");
+
+  const skripsiModal = document.getElementById("skripsi-modal");
+  const closeSkripsiModalBtn = document.getElementById("close-skripsi-modal-btn");
+  const promptCards = document.querySelectorAll(".prompt-card");
+  const promptPreviewTextarea = document.getElementById("prompt-preview-textarea");
+  const copyFullPromptBtn = document.getElementById("copy-full-prompt-btn");
+  const copyPromptBtnText = document.getElementById("copy-prompt-btn-text");
   
   let allDocuments = [];
   let currentSelectedMd = null;
+  let currentRawMarkdown = "";
   let fontScalePercent = 100;
   let isPresentationMode = false;
   let activeMobileTab = "list";
+  let activePromptId = "bab1";
   
   // 1. Theme Management (R-21, R-34)
   const savedTheme = localStorage.getItem("papermarkdown-theme") || "dark";
@@ -214,14 +236,19 @@ document.addEventListener("DOMContentLoaded", () => {
       const sizeKB = (doc.size_bytes / 1024).toFixed(0);
       const isReady = doc.has_markdown;
       
+      const ext = doc.filename.split('.').pop().toLowerCase();
+      const badgeTypeClass = ext === 'docx' ? 'docx' : (ext === 'doc' ? 'doc' : 'pdf');
+      const badgeTypeText = ext.toUpperCase();
+
       itemEl.innerHTML = `
         <div class="doc-item-title" title="${escapeHtml(doc.filename)}">
-          ${escapeHtml(doc.filename.replace('.pdf', ''))}
+          <span class="doc-type-badge ${badgeTypeClass}">${badgeTypeText}</span>
+          ${escapeHtml(doc.filename.replace(/\.(pdf|docx|doc)$/i, ''))}
         </div>
         <div class="doc-item-meta">
           <span>${sizeKB} KB</span>
           <span class="status-tag ${isReady ? 'ready' : 'pending'}">
-            ${isReady ? 'Markdown Siap' : 'Perlu Konversi'}
+            ${isReady ? 'Siap Baca' : 'Perlu Konversi'}
           </span>
         </div>
       `;
@@ -268,9 +295,32 @@ document.addEventListener("DOMContentLoaded", () => {
       
       renderedContentEl.innerHTML = data.rendered_html;
       rawContentEl.value = data.raw_markdown;
+      currentRawMarkdown = data.raw_markdown;
       
       copyBtn.disabled = false;
       downloadBtn.disabled = false;
+      if (skripsiToolsBtn) skripsiToolsBtn.disabled = false;
+
+      // Update Skripsi Stats Bar
+      if (data.stats && skripsiStatsBar) {
+        skripsiStatsBar.classList.remove("hidden");
+        if (statWords) statWords.textContent = `${data.stats.word_count.toLocaleString()} Kata`;
+        if (statReading) statReading.textContent = `${data.stats.reading_time_min} Menit Baca`;
+        if (statHeadings) statHeadings.textContent = `${data.stats.headings_count} Bab / Subbab`;
+        if (statTables) statTables.textContent = `${data.stats.tables_count} Tabel`;
+      }
+
+      // Update Outline / Table of Contents
+      if (data.headings && data.headings.length > 0) {
+        renderOutline(data.headings);
+        if (toggleOutlineBtn) toggleOutlineBtn.disabled = false;
+      } else {
+        if (toggleOutlineBtn) toggleOutlineBtn.disabled = true;
+        if (outlineDrawer) outlineDrawer.classList.add("hidden");
+      }
+
+      // Refresh Skripsi Prompt Preview with Document Context
+      updatePromptPreview();
       
       // Auto-transition to reader on mobile when a document is opened
       if (window.innerWidth <= 768) {
@@ -372,9 +422,12 @@ document.addEventListener("DOMContentLoaded", () => {
   });
   
   async function handleFilesUpload(files) {
-    const validFiles = Array.from(files).filter(f => f.name.toLowerCase().endsWith(".pdf"));
+    const validFiles = Array.from(files).filter(f => {
+      const name = f.name.toLowerCase();
+      return name.endsWith(".pdf") || name.endsWith(".docx") || name.endsWith(".doc");
+    });
     if (validFiles.length === 0) {
-      showToast("Mohon pilih file berekstensi .pdf", "error");
+      showToast("Mohon pilih file berekstensi .pdf, .docx, atau .doc", "error");
       return;
     }
     
@@ -453,6 +506,177 @@ document.addEventListener("DOMContentLoaded", () => {
       .replace(/'/g, "&#039;");
   }
   
+  // 13. Skripsi AI Prompt Helper Templates (Hard Gate R-02 Compliant, No Em Dashes)
+  const SKRIPSI_PROMPTS = {
+    bab1: `Bertindaklah sebagai Dosen Pembimbing Skripsi dan Reviewer Ahli Metodologi Penelitian.
+Evaluasilah BAB I (Pendahuluan) dari draf dokumen berikut. Fokuskan evaluasi pada:
+1. Urgensi Latar Belakang: Apakah permasalahan yang diangkat didukung data riil dan justifikasi ilmiah yang kuat?
+2. Keterkaitan Rumusan Masalah dan Tujuan: Apakah rumusan masalah sudah terukur (measurable) dan terjawab langsung oleh tujuan penelitian?
+3. Batasan Masalah: Apakah batasan ruang lingkup riset sudah jelas (dataset, algoritma, periode waktu)?
+4. Berikan saran revisi kalimat pembuka dan poin perbaikan konkret.
+
+Berikut naskah BAB I:
+[KONTEN DOKUMEN AKAN DISISIPKAN DI SINI]`,
+
+    bab2: `Bertindaklah sebagai Dosen Penelaah Skripsi bidang Kecerdasan Buatan dan Sains Data.
+Analisis BAB II (Tinjauan Pustaka & Landasan Teori) berikut:
+1. State-of-the-Art & Gap Penelitian: Apakah kajian literatur menunjukkan posisi penelitian ini terhadap penelitian-penelitian terdahulu?
+2. Landasan Teori Algoritma: Apakah teori dasar (seperti LSTM, XGBoost, ARIMA, dll.) dijelaskan secara matematis dan konseptual dengan benar?
+3. Relevansi Referensi: Berikan saran literatur atau konsep kunci yang perlu ditambahkan agar landasan teori lebih kokoh.
+
+Berikut naskah BAB II:
+[KONTEN DOKUMEN AKAN DISISIPKAN DI SINI]`,
+
+    bab3: `Bertindaklah sebagai Penguji Sidang Skripsi bidang Data Science dan Machine Learning.
+Lakukan audit kritis terhadap BAB III (Metodologi Penelitian) berikut:
+1. Alur Penelitian (Flowchart): Apakah tahapan riset dari akuisisi data, preprocessing, pemodelan, hingga validasi sudah logis dan terstruktur?
+2. Preprocessing & Validasi Data: Apakah ada risiko data leakage? Apakah split data (train/validation/test) dan scaling data dijelaskan transparan?
+3. Arsitektur Model & Hyperparameter: Apakah konfigurasi parameter model dijelaskan dengan baik?
+4. Metrik Evaluasi: Apakah metrik (RMSE, MAPE, MAE, R-squared) sesuai dengan karakteristik data?
+5. Tuliskan daftar 5 pertanyaan kritis yang kemungkinan akan ditanyakan penguji saat sidang skripsi beserta rekomendasi jawabannya.
+
+Berikut naskah BAB III:
+[KONTEN DOKUMEN AKAN DISISIPKAN DI SINI]`,
+
+    bab4: `Bertindaklah sebagai Dosen Pembimbing Skripsi.
+Bantulah menganalisis dan menyusun narasi akademik untuk BAB IV (Hasil dan Pembahasan) berikut:
+1. Interpretasi Data & Tabel: Buat narasi ilmiah yang menjelaskan makna angka-angka metrik akurasi atau tabel hasil eksperimen.
+2. Analisis Perbandingan: Jelaskan mengapa satu algoritma mengungguli algoritma lain (misal Hybrid LSTM-XGBoost vs Single Model) berdasarkan karakteristik model.
+3. Keterbatasan Eksperimen: Apa saja kelemahan atau anomali data yang perlu diakui secara jujur dalam pembahasan?
+
+Berikut naskah BAB IV:
+[KONTEN DOKUMEN AKAN DISISIPKAN DI SINI]`,
+
+    bab5: `Bertindaklah sebagai Tim Penguji Sidang Skripsi.
+Periksalah BAB V (Kesimpulan dan Saran) berikut:
+1. Apakah kesimpulan secara tegas dan ringkas menjawab setiap poin rumusan masalah penelitian?
+2. Pastikan tidak ada spekulasi atau pernyataan baru yang tidak didukung data pada Bab IV.
+3. Apakah saran riset lanjutan bersifat konstruktif dan teknis (misalnya perbaikan fitur, penambahan dataset, optimasi hyperparameter)?
+
+Berikut naskah BAB V:
+[KONTEN DOKUMEN AKAN DISISIPKAN DI SINI]`,
+
+    daftar_pustaka: `Bertindaklah sebagai Editor Jurnal dan Penyelaras Skripsi.
+Periksalah format sitasi dan daftar pustaka berikut sesuai gaya sitasi akademik (APA 7th Edition atau IEEE):
+1. Verifikasi kelengkapan komponen: Penulis, Tahun, Judul, Jurnal/Prosiding, Volume/Nomor, Halaman, dan DOI/URL.
+2. Identifikasi sitasi dalam teks yang belum ada di daftar pustaka (atau sebaliknya).
+3. Rapikan susunan alfabetis dan format indentasi gantung (hanging indent).
+
+Berikut daftar pustaka / teks dokumen:
+[KONTEN DOKUMEN AKAN DISISIPKAN DI SINI]`
+  };
+
+  function updatePromptPreview() {
+    if (!promptPreviewTextarea) return;
+    const basePrompt = SKRIPSI_PROMPTS[activePromptId] || SKRIPSI_PROMPTS.bab1;
+    const previewContent = currentRawMarkdown ? currentRawMarkdown.substring(0, 500) + "\n\n... [Sisa teks dokumen akan otomatis digabungkan saat disalin] ..." : "(Pilih atau buka dokumen terlebih dahulu)";
+    promptPreviewTextarea.value = basePrompt.replace("[KONTEN DOKUMEN AKAN DISISIPKAN DI SINI]", previewContent);
+  }
+
+  // Outline / Table of Contents Renderer
+  function renderOutline(headings) {
+    if (!outlineList) return;
+    outlineList.innerHTML = "";
+    
+    headings.forEach(h => {
+      const btn = document.createElement("button");
+      btn.className = `outline-item lvl-${h.level}`;
+      btn.textContent = h.title;
+      btn.title = h.title;
+      
+      btn.addEventListener("click", () => {
+        // Find matching heading in rendered pane
+        const headingsInDoc = viewRendered.querySelectorAll("h1, h2, h3, h4");
+        for (const el of headingsInDoc) {
+          if (el.textContent.trim().toLowerCase().includes(h.title.toLowerCase().substring(0, 20))) {
+            el.scrollIntoView({ behavior: "smooth", block: "start" });
+            break;
+          }
+        }
+        if (window.innerWidth <= 768 && outlineDrawer) {
+          outlineDrawer.classList.add("hidden");
+        }
+      });
+      
+      outlineList.appendChild(btn);
+    });
+  }
+
+  // Toggle Outline Drawer
+  if (toggleOutlineBtn) {
+    toggleOutlineBtn.addEventListener("click", () => {
+      if (outlineDrawer) {
+        outlineDrawer.classList.toggle("hidden");
+      }
+    });
+  }
+
+  if (closeOutlineBtn) {
+    closeOutlineBtn.addEventListener("click", () => {
+      if (outlineDrawer) outlineDrawer.classList.add("hidden");
+    });
+  }
+
+  // Skripsi Modal Handlers
+  if (skripsiToolsBtn) {
+    skripsiToolsBtn.addEventListener("click", () => {
+      if (!currentSelectedMd) {
+        showToast("Pilih dokumen terlebih dahulu", "info");
+        return;
+      }
+      updatePromptPreview();
+      if (skripsiModal) skripsiModal.classList.remove("hidden");
+    });
+  }
+
+  if (closeSkripsiModalBtn) {
+    closeSkripsiModalBtn.addEventListener("click", () => {
+      if (skripsiModal) skripsiModal.classList.add("hidden");
+    });
+  }
+
+  if (skripsiModal) {
+    skripsiModal.addEventListener("click", (e) => {
+      if (e.target === skripsiModal) {
+        skripsiModal.classList.add("hidden");
+      }
+    });
+  }
+
+  // Prompt Cards selection
+  promptCards.forEach(card => {
+    card.addEventListener("click", () => {
+      promptCards.forEach(c => c.classList.remove("active"));
+      card.classList.add("active");
+      activePromptId = card.getAttribute("data-prompt-id") || "bab1";
+      updatePromptPreview();
+    });
+  });
+
+  // Copy Full Prompt with Complete Document Text
+  if (copyFullPromptBtn) {
+    copyFullPromptBtn.addEventListener("click", async () => {
+      const basePrompt = SKRIPSI_PROMPTS[activePromptId] || SKRIPSI_PROMPTS.bab1;
+      const fullText = currentRawMarkdown || "(Teks dokumen kosong)";
+      const fullPromptToCopy = basePrompt.replace("[KONTEN DOKUMEN AKAN DISISIPKAN DI SINI]", fullText);
+
+      try {
+        await navigator.clipboard.writeText(fullPromptToCopy);
+        copyPromptBtnText.textContent = "Tersalin ke Clipboard!";
+        showToast("Prompt skripsi + teks dokumen berhasil disalin ke clipboard!", "success");
+        setTimeout(() => {
+          copyPromptBtnText.textContent = "Salin Prompt Lengkap + Teks Dokumen";
+          if (skripsiModal) skripsiModal.classList.add("hidden");
+        }, 1500);
+      } catch (err) {
+        promptPreviewTextarea.value = fullPromptToCopy;
+        promptPreviewTextarea.select();
+        document.execCommand("copy");
+        showToast("Prompt berhasil disalin", "success");
+      }
+    });
+  }
+
   // Initialize
   loadDocuments();
 });
