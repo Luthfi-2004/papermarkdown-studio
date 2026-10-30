@@ -36,7 +36,9 @@ desktop.ini
 *.log
 .docker/
 
-# Output data (optional, keep directory structure)
+# Data Directories (keep empty structure for git)
+input_pdfs/*
+!input_pdfs/.gitkeep
+
 output_markdown/*
 !output_markdown/.gitkeep
-!output_markdown/00_INDEX_DAN_RINGKASAN.md
