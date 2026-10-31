@@ -87,6 +87,8 @@ def build_document_details(raw_md):
     }
 
 @app.route("/")
+@app.route("/api")
+@app.route("/api/")
 @app.route("/api/index")
 def index():
     return send_from_directory(STATIC_DIR, "index.html")
