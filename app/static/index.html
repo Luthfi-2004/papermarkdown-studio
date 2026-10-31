@@ -79,6 +79,14 @@
           </div>
         </div>
 
+        <!-- Auto-Download Options -->
+        <div class="upload-options">
+          <label class="auto-download-label" title="Otomatis mengunduh file .md ke browser setelah selesai konversi">
+            <input type="checkbox" id="auto-download-toggle" checked>
+            <span>Auto-download file .md setelah konversi</span>
+          </label>
+        </div>
+
         <!-- Upload Progress Indicator -->
         <div id="upload-progress-container" class="progress-box hidden" aria-live="polite">
           <div class="progress-header">
@@ -94,8 +102,18 @@
       <!-- Document List Card -->
       <section class="panel-card list-section" id="mobile-list-card">
         <div class="list-header">
-          <h2 class="section-title">Koleksi Dokumen & Skripsi</h2>
-          <span id="badge-count" class="counter-badge">0 file</span>
+          <div class="list-title-group">
+            <h2 class="section-title">Koleksi Dokumen & Skripsi</h2>
+            <span id="badge-count" class="counter-badge">0 file</span>
+          </div>
+          <button id="download-all-btn" class="glass-mini-btn download-all-btn" title="Unduh semua file Markdown dalam satu file .zip">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            <span>Unduh ZIP</span>
+          </button>
         </div>
 
         <!-- Search / Filter input -->
@@ -377,7 +395,7 @@
     </button>
 
     <button id="mobile-nav-upload" class="dock-item" aria-label="Buka Menu Unggah Dokumen">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
         <polyline points="17 8 12 3 7 8"></polyline>
         <line x1="12" y1="3" x2="12" y2="15"></line>

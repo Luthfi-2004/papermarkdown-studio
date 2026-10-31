@@ -306,6 +306,66 @@ body {
   text-decoration: underline;
 }
 
+/* Auto-Download Options */
+.upload-options {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+}
+
+.auto-download-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+}
+
+.auto-download-label input[type="checkbox"] {
+  accent-color: var(--accent);
+  cursor: pointer;
+  width: 15px;
+  height: 15px;
+}
+
+.list-title-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.download-all-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.7rem;
+  padding: 3px 8px;
+  color: var(--accent);
+  background-color: var(--accent-subtle);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.quick-download-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  transition: all var(--transition-fast);
+}
+
+.quick-download-btn:hover {
+  color: var(--accent);
+  background: var(--accent-subtle);
+}
+
 /* Progress Box */
 .progress-box {
   margin-top: 12px;

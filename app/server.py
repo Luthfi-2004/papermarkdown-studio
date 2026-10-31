@@ -1,6 +1,8 @@
 import os
 import glob
 import re
+import io
+import zipfile
 import traceback
 import mistune
 from flask import Flask, request, jsonify, send_file, send_from_directory
@@ -208,6 +210,26 @@ def download_markdown(md_filename):
     if not os.path.exists(file_path):
         return jsonify({"success": False, "error": "File tidak ditemukan."}), 404
     return send_file(file_path, as_attachment=True, download_name=safe_name)
+
+@app.route("/api/download-all", methods=["GET"])
+def download_all_markdown():
+    md_files = [f for f in os.listdir(OUTPUT_DIR) if f.endswith(".md") and not f.startswith("00_INDEX")]
+    if not md_files:
+        return jsonify({"success": False, "error": "Belum ada file Markdown hasil konversi."}), 404
+        
+    memory_file = io.BytesIO()
+    with zipfile.ZipFile(memory_file, 'w', zipfile.ZIP_DEFLATED) as zf:
+        for f in md_files:
+            file_path = os.path.join(OUTPUT_DIR, f)
+            zf.write(file_path, arcname=f)
+    memory_file.seek(0)
+    
+    return send_file(
+        memory_file,
+        mimetype="application/zip",
+        as_attachment=True,
+        download_name="Semua_Dokumen_Markdown_Skripsi.zip"
+    )
 
 def main():
     port = int(os.environ.get("PORT", 5000))

@@ -18,8 +18,12 @@ docker compose up -d --build
 echo.
 echo ======================================================================
 echo [OK] PaperMarkdown Studio aktif!
-echo Buka browser Anda di: http://localhost:5000
+echo Membuka browser Anda di: http://localhost:5000 ...
 echo ======================================================================
+start http://localhost:5000
+echo.
+echo Folder hasil konversi: %~dp0output_markdown
+echo.
 echo.
 echo Untuk melihat log server: docker compose logs -f
 echo Untuk menghentikan server: docker compose down

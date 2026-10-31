@@ -45,6 +45,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const mobileNavReader = document.getElementById("mobile-nav-reader");
 
   // Skripsi Tools & Outline Elements
+  const downloadAllBtn = document.getElementById("download-all-btn");
+  const autoDownloadToggle = document.getElementById("auto-download-toggle");
   const skripsiToolsBtn = document.getElementById("skripsi-tools-btn");
   const toggleOutlineBtn = document.getElementById("toggle-outline-btn");
   const outlineDrawer = document.getElementById("outline-drawer");
@@ -198,6 +200,11 @@ document.addEventListener("DOMContentLoaded", () => {
       const count = allDocuments.length;
       docCounterEl.textContent = `${count} Dokumen Siap`;
       badgeCountEl.textContent = `${count} file`;
+
+      const readyDocs = allDocuments.filter(d => d.has_markdown);
+      if (downloadAllBtn) {
+        downloadAllBtn.style.display = readyDocs.length > 0 ? "inline-flex" : "none";
+      }
       
       if (selectAfterLoad) {
         const item = allDocuments.find(d => d.md_filename === selectAfterLoad || d.filename === selectAfterLoad);
@@ -247,12 +254,31 @@ document.addEventListener("DOMContentLoaded", () => {
         </div>
         <div class="doc-item-meta">
           <span>${sizeKB} KB</span>
-          <span class="status-tag ${isReady ? 'ready' : 'pending'}">
-            ${isReady ? 'Siap Baca' : 'Perlu Konversi'}
-          </span>
+          <div style="display:flex; align-items:center; gap:6px;">
+            <span class="status-tag ${isReady ? 'ready' : 'pending'}">
+              ${isReady ? 'Siap Baca' : 'Perlu Konversi'}
+            </span>
+            ${isReady ? `
+              <span class="quick-download-btn" title="Unduh Markdown langsung (.md)" data-file="${escapeHtml(doc.md_filename)}">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+              </span>
+            ` : ''}
+          </div>
         </div>
       `;
       
+      const qBtn = itemEl.querySelector(".quick-download-btn");
+      if (qBtn) {
+        qBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const targetMd = qBtn.getAttribute("data-file");
+          if (targetMd) {
+            window.location.href = `/api/download/${encodeURIComponent(targetMd)}`;
+            showToast(`Mengunduh ${targetMd}...`, "success");
+          }
+        });
+      }
+
       itemEl.addEventListener("click", () => {
         if (doc.has_markdown) {
           selectDocument(doc.md_filename, doc.filename);
@@ -383,6 +409,13 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!currentSelectedMd) return;
     window.location.href = `/api/download/${encodeURIComponent(currentSelectedMd)}`;
   });
+
+  if (downloadAllBtn) {
+    downloadAllBtn.addEventListener("click", () => {
+      window.location.href = "/api/download-all";
+      showToast("Mengunduh semua file Markdown (.zip)...", "success");
+    });
+  }
   
   // 12. Drag & Drop Upload
   dropzone.addEventListener("click", () => fileInput.click());
@@ -463,7 +496,25 @@ document.addEventListener("DOMContentLoaded", () => {
       percentLabel.textContent = "100%";
       statusLabel.textContent = "Konversi selesai!";
       
-      showToast(`Berhasil mengonversi ${data.converted.length} file PDF!`, "success");
+      showToast(`Berhasil mengonversi ${data.converted.length} dokumen!`, "success");
+
+      // Auto-download converted files to user's computer if enabled
+      const isAutoDownload = autoDownloadToggle ? autoDownloadToggle.checked : true;
+      if (isAutoDownload && data.converted) {
+        data.converted.forEach((item, idx) => {
+          if (item.md_filename) {
+            setTimeout(() => {
+              const a = document.createElement("a");
+              a.href = `/api/download/${encodeURIComponent(item.md_filename)}`;
+              a.download = item.md_filename;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              showToast(`File ${item.md_filename} otomatis diunduh!`, "success");
+            }, idx * 400);
+          }
+        });
+      }
       
       setTimeout(async () => {
         progressBox.classList.add("hidden");
