@@ -36,6 +36,9 @@ desktop.ini
 *.log
 .docker/
 
+# Vercel
+.vercel/
+
 # Data Directories (keep empty structure for git)
 input_pdfs/*
 !input_pdfs/.gitkeep

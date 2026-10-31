@@ -14,14 +14,24 @@ STATIC_DIR = os.path.join(APP_DIR, "static")
 app = Flask(__name__, static_folder=STATIC_DIR)
 
 # Configure directories via environment or defaults
+# When running on Vercel or other serverless platforms, use /tmp for writes
 BASE_DIR = os.path.dirname(APP_DIR)
-INPUT_DIR = os.environ.get("INPUT_DIR", os.path.join(BASE_DIR, "input_pdfs"))
-OUTPUT_DIR = os.environ.get("OUTPUT_DIR", os.path.join(BASE_DIR, "output_markdown"))
+IS_SERVERLESS = bool(os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"))
+
+if IS_SERVERLESS:
+    INPUT_DIR = os.path.join("/tmp", "input_pdfs")
+    OUTPUT_DIR = os.path.join("/tmp", "output_markdown")
+else:
+    INPUT_DIR = os.environ.get("INPUT_DIR", os.path.join(BASE_DIR, "input_pdfs"))
+    OUTPUT_DIR = os.environ.get("OUTPUT_DIR", os.path.join(BASE_DIR, "output_markdown"))
 
 ALLOWED_EXTENSIONS = {'.pdf', '.docx', '.doc'}
 
-os.makedirs(INPUT_DIR, exist_ok=True)
-os.makedirs(OUTPUT_DIR, exist_ok=True)
+try:
+    os.makedirs(INPUT_DIR, exist_ok=True)
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+except Exception as e:
+    pass
 
 markdown_renderer = mistune.create_markdown(plugins=['table'])
 
@@ -50,6 +60,32 @@ def extract_headings_from_md(md_text):
             })
     return headings
 
+def build_document_details(raw_md):
+    try:
+        rendered = markdown_renderer(raw_md)
+    except Exception:
+        rendered = f"<pre>{raw_md}</pre>"
+        
+    words = raw_md.split()
+    word_count = len(words)
+    char_count = len(raw_md)
+    reading_time = max(1, round(word_count / 200))
+    headings = extract_headings_from_md(raw_md)
+    tables_count = len(re.findall(r'\|(?:\s*---\s*\|)+', raw_md))
+    
+    return {
+        "raw_markdown": raw_md,
+        "rendered_html": rendered,
+        "stats": {
+            "word_count": word_count,
+            "char_count": char_count,
+            "reading_time_min": reading_time,
+            "headings_count": len(headings),
+            "tables_count": tables_count
+        },
+        "headings": headings
+    }
+
 @app.route("/")
 def index():
     return send_from_directory(STATIC_DIR, "index.html")
@@ -60,12 +96,17 @@ def serve_static(filename):
 
 @app.route("/api/documents", methods=["GET"])
 def get_documents():
+    os.makedirs(INPUT_DIR, exist_ok=True)
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    
     input_files = []
     for ext in ["*.pdf", "*.docx", "*.doc"]:
         input_files.extend(glob.glob(os.path.join(INPUT_DIR, ext)))
     input_files = sorted(input_files)
     
-    md_files = {f: os.path.join(OUTPUT_DIR, f) for f in os.listdir(OUTPUT_DIR) if f.endswith(".md")}
+    md_files = {}
+    if os.path.exists(OUTPUT_DIR):
+        md_files = {f: os.path.join(OUTPUT_DIR, f) for f in os.listdir(OUTPUT_DIR) if f.endswith(".md")}
     
     documents = []
     for doc_path in input_files:
@@ -120,36 +161,19 @@ def get_document_content(md_filename):
     with open(file_path, "r", encoding="utf-8") as f:
         raw_md = f.read()
         
-    try:
-        rendered = markdown_renderer(raw_md)
-    except Exception as e:
-        rendered = f"<pre>{raw_md}</pre>"
-        
-    # Thesis and document analysis statistics
-    words = raw_md.split()
-    word_count = len(words)
-    char_count = len(raw_md)
-    reading_time = max(1, round(word_count / 200))
-    headings = extract_headings_from_md(raw_md)
-    tables_count = len(re.findall(r'\|(?:\s*---\s*\|)+', raw_md))
+    details = build_document_details(raw_md)
     
     return jsonify({
         "success": True,
         "filename": safe_name,
-        "raw_markdown": raw_md,
-        "rendered_html": rendered,
-        "stats": {
-            "word_count": word_count,
-            "char_count": char_count,
-            "reading_time_min": reading_time,
-            "headings_count": len(headings),
-            "tables_count": tables_count
-        },
-        "headings": headings
+        **details
     })
 
 @app.route("/api/upload", methods=["POST"])
 def upload_files():
+    os.makedirs(INPUT_DIR, exist_ok=True)
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+
     if "file" not in request.files and "files[]" not in request.files:
         return jsonify({"success": False, "error": "Tidak ada file PDF atau Word yang diunggah."}), 400
         
@@ -169,6 +193,15 @@ def upload_files():
         
         try:
             result = convert_any_document(dest_path, OUTPUT_DIR)
+            md_name = result.get("md_filename")
+            md_path = os.path.join(OUTPUT_DIR, md_name) if md_name else None
+            
+            if md_path and os.path.exists(md_path):
+                with open(md_path, "r", encoding="utf-8") as mdf:
+                    raw_md = mdf.read()
+                details = build_document_details(raw_md)
+                result.update(details)
+                
             converted_list.append(result)
         except Exception as e:
             traceback.print_exc()
@@ -198,6 +231,15 @@ def convert_specific(doc_filename):
         
     try:
         result = convert_any_document(doc_path, OUTPUT_DIR)
+        md_name = result.get("md_filename")
+        md_path = os.path.join(OUTPUT_DIR, md_name) if md_name else None
+        
+        if md_path and os.path.exists(md_path):
+            with open(md_path, "r", encoding="utf-8") as mdf:
+                raw_md = mdf.read()
+            details = build_document_details(raw_md)
+            result.update(details)
+            
         return jsonify({"success": True, "result": result})
     except Exception as e:
         traceback.print_exc()
@@ -213,6 +255,9 @@ def download_markdown(md_filename):
 
 @app.route("/api/download-all", methods=["GET"])
 def download_all_markdown():
+    if not os.path.exists(OUTPUT_DIR):
+        return jsonify({"success": False, "error": "Belum ada file Markdown hasil konversi."}), 404
+        
     md_files = [f for f in os.listdir(OUTPUT_DIR) if f.endswith(".md") and not f.startswith("00_INDEX")]
     if not md_files:
         return jsonify({"success": False, "error": "Belum ada file Markdown hasil konversi."}), 404

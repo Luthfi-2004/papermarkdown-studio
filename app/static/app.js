@@ -73,6 +73,57 @@ document.addEventListener("DOMContentLoaded", () => {
   let isPresentationMode = false;
   let activeMobileTab = "list";
   let activePromptId = "bab1";
+
+  // Client-side document memory & localStorage cache
+  const clientDocCache = new Map();
+
+  function downloadMarkdownBlob(filename, content) {
+    if (!content) return false;
+    try {
+      const blob = new Blob([content], { type: "text/markdown;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename.endsWith(".md") ? filename : `${filename}.md`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      return true;
+    } catch (err) {
+      console.error("Blob download error:", err);
+      return false;
+    }
+  }
+
+  function saveToClientCache(docData) {
+    if (!docData || !docData.md_filename) return;
+    clientDocCache.set(docData.md_filename, docData);
+    try {
+      const list = JSON.parse(localStorage.getItem("papermarkdown-cached-docs") || "[]");
+      const existingIndex = list.findIndex(d => d.md_filename === docData.md_filename);
+      const itemToStore = {
+        filename: docData.filename,
+        md_filename: docData.md_filename,
+        file_type: docData.file_type || docData.type || "pdf",
+        size_bytes: docData.size_bytes || (docData.raw_markdown ? docData.raw_markdown.length : 1024),
+        has_markdown: true,
+        raw_markdown: docData.raw_markdown,
+        rendered_html: docData.rendered_html,
+        stats: docData.stats,
+        headings: docData.headings,
+        timestamp: Date.now()
+      };
+      if (existingIndex >= 0) {
+        list[existingIndex] = itemToStore;
+      } else {
+        list.unshift(itemToStore);
+      }
+      localStorage.setItem("papermarkdown-cached-docs", JSON.stringify(list.slice(0, 25)));
+    } catch (e) {
+      console.warn("Storage quota exceeded or error caching doc:", e);
+    }
+  }
   
   // 1. Theme Management (R-21, R-34)
   const savedTheme = localStorage.getItem("papermarkdown-theme") || "dark";
@@ -183,18 +234,42 @@ document.addEventListener("DOMContentLoaded", () => {
   tabRenderedBtn.addEventListener("click", () => switchTab("rendered"));
   tabRawBtn.addEventListener("click", () => switchTab("raw"));
   
-  // 5. Load Documents from API
+  // 5. Load Documents from API & Client Storage
   async function loadDocuments(selectAfterLoad = null) {
+    let cachedList = [];
+    try {
+      const stored = JSON.parse(localStorage.getItem("papermarkdown-cached-docs") || "[]");
+      if (Array.isArray(stored)) {
+        stored.forEach(d => {
+          if (d && d.md_filename) {
+            clientDocCache.set(d.md_filename, d);
+            cachedList.push(d);
+          }
+        });
+      }
+    } catch (e) {
+      console.warn("Error reading local cached docs:", e);
+    }
+
     try {
       const res = await fetch("/api/documents");
       const data = await res.json();
       
-      if (!data.success) {
-        showToast(data.error || "Gagal memuat dokumen", "error");
-        return;
+      let serverDocs = [];
+      if (data && data.success && Array.isArray(data.documents)) {
+        serverDocs = data.documents;
       }
       
-      allDocuments = data.documents;
+      const mergedMap = new Map();
+      serverDocs.forEach(d => mergedMap.set(d.md_filename || d.filename, d));
+      cachedList.forEach(d => {
+        const key = d.md_filename || d.filename;
+        if (!mergedMap.has(key)) {
+          mergedMap.set(key, d);
+        }
+      });
+
+      allDocuments = Array.from(mergedMap.values());
       renderDocList(allDocuments);
       
       const count = allDocuments.length;
@@ -218,8 +293,20 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       }
     } catch (err) {
-      console.error(err);
-      showToast("Koneksi server gagal", "error");
+      console.warn("Server connection failed or offline, rendering cached documents:", err);
+      if (cachedList.length > 0) {
+        allDocuments = cachedList;
+        renderDocList(allDocuments);
+        docCounterEl.textContent = `${cachedList.length} Dokumen Tersimpan`;
+        badgeCountEl.textContent = `${cachedList.length} file`;
+        if (selectAfterLoad) {
+          selectDocument(selectAfterLoad);
+        } else if (!currentSelectedMd && cachedList[0]) {
+          selectDocument(cachedList[0].md_filename, cachedList[0].filename);
+        }
+      } else {
+        showToast("Koneksi server gagal", "error");
+      }
     }
   }
   
@@ -273,8 +360,14 @@ document.addEventListener("DOMContentLoaded", () => {
           e.stopPropagation();
           const targetMd = qBtn.getAttribute("data-file");
           if (targetMd) {
-            window.location.href = `/api/download/${encodeURIComponent(targetMd)}`;
-            showToast(`Mengunduh ${targetMd}...`, "success");
+            const cached = clientDocCache.get(targetMd);
+            if (cached && cached.raw_markdown) {
+              downloadMarkdownBlob(targetMd, cached.raw_markdown);
+              showToast(`Mengunduh ${targetMd}...`, "success");
+            } else {
+              window.location.href = `/api/download/${encodeURIComponent(targetMd)}`;
+              showToast(`Mengunduh ${targetMd}...`, "success");
+            }
           }
         });
       }
@@ -291,6 +384,46 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
   
+  // 6b. Apply Document Details to UI
+  function applyDocumentData(data, origName) {
+    if (!data) return;
+    const displayName = origName ? origName.replace(/\.(pdf|docx|doc)$/i, '') : (data.filename || data.md_filename || "").replace(/\.(pdf|docx|doc|md)$/i, '');
+    activeTitleEl.textContent = displayName;
+    renderedContentEl.innerHTML = data.rendered_html || `<div class="empty-state"><p>Tidak ada konten.</p></div>`;
+    rawContentEl.value = data.raw_markdown || "";
+    currentRawMarkdown = data.raw_markdown || "";
+    
+    copyBtn.disabled = !currentRawMarkdown;
+    downloadBtn.disabled = !currentRawMarkdown;
+    if (skripsiToolsBtn) skripsiToolsBtn.disabled = !currentRawMarkdown;
+
+    // Update Skripsi Stats Bar
+    if (data.stats && skripsiStatsBar) {
+      skripsiStatsBar.classList.remove("hidden");
+      if (statWords) statWords.textContent = `${data.stats.word_count.toLocaleString()} Kata`;
+      if (statReading) statReading.textContent = `${data.stats.reading_time_min} Menit Baca`;
+      if (statHeadings) statHeadings.textContent = `${data.stats.headings_count} Bab / Subbab`;
+      if (statTables) statTables.textContent = `${data.stats.tables_count} Tabel`;
+    }
+
+    // Update Outline / Table of Contents
+    if (data.headings && data.headings.length > 0) {
+      renderOutline(data.headings);
+      if (toggleOutlineBtn) toggleOutlineBtn.disabled = false;
+    } else {
+      if (toggleOutlineBtn) toggleOutlineBtn.disabled = true;
+      if (outlineDrawer) outlineDrawer.classList.add("hidden");
+    }
+
+    // Refresh Skripsi Prompt Preview with Document Context
+    updatePromptPreview();
+    
+    // Auto-transition to reader on mobile when a document is opened
+    if (window.innerWidth <= 768) {
+      setMobileView("reader");
+    }
+  }
+
   // 7. Select & Display Document
   async function selectDocument(mdFilename, origName) {
     currentSelectedMd = mdFilename;
@@ -301,8 +434,15 @@ document.addEventListener("DOMContentLoaded", () => {
     if (matched !== -1 && items[matched]) {
       items[matched].classList.add("active");
     }
+
+    // Check client cache first for instant 0ms rendering
+    const cached = clientDocCache.get(mdFilename);
+    if (cached && cached.raw_markdown) {
+      applyDocumentData(cached, origName);
+      return;
+    }
     
-    activeTitleEl.textContent = origName ? origName.replace('.pdf', '') : mdFilename;
+    activeTitleEl.textContent = origName ? origName.replace(/\.(pdf|docx|doc)$/i, '') : mdFilename;
     renderedContentEl.innerHTML = `<div class="empty-state"><p>Mempersiapkan layar presentasi artikel...</p></div>`;
     rawContentEl.value = "Memuat...";
     
@@ -319,39 +459,8 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
       
-      renderedContentEl.innerHTML = data.rendered_html;
-      rawContentEl.value = data.raw_markdown;
-      currentRawMarkdown = data.raw_markdown;
-      
-      copyBtn.disabled = false;
-      downloadBtn.disabled = false;
-      if (skripsiToolsBtn) skripsiToolsBtn.disabled = false;
-
-      // Update Skripsi Stats Bar
-      if (data.stats && skripsiStatsBar) {
-        skripsiStatsBar.classList.remove("hidden");
-        if (statWords) statWords.textContent = `${data.stats.word_count.toLocaleString()} Kata`;
-        if (statReading) statReading.textContent = `${data.stats.reading_time_min} Menit Baca`;
-        if (statHeadings) statHeadings.textContent = `${data.stats.headings_count} Bab / Subbab`;
-        if (statTables) statTables.textContent = `${data.stats.tables_count} Tabel`;
-      }
-
-      // Update Outline / Table of Contents
-      if (data.headings && data.headings.length > 0) {
-        renderOutline(data.headings);
-        if (toggleOutlineBtn) toggleOutlineBtn.disabled = false;
-      } else {
-        if (toggleOutlineBtn) toggleOutlineBtn.disabled = true;
-        if (outlineDrawer) outlineDrawer.classList.add("hidden");
-      }
-
-      // Refresh Skripsi Prompt Preview with Document Context
-      updatePromptPreview();
-      
-      // Auto-transition to reader on mobile when a document is opened
-      if (window.innerWidth <= 768) {
-        setMobileView("reader");
-      }
+      saveToClientCache(data);
+      applyDocumentData(data, origName);
     } catch (err) {
       console.error(err);
       showToast("Gagal memuat artikel", "error");
@@ -407,7 +516,12 @@ document.addEventListener("DOMContentLoaded", () => {
   // 11. Download .md File
   downloadBtn.addEventListener("click", () => {
     if (!currentSelectedMd) return;
-    window.location.href = `/api/download/${encodeURIComponent(currentSelectedMd)}`;
+    if (currentRawMarkdown) {
+      downloadMarkdownBlob(currentSelectedMd, currentRawMarkdown);
+      showToast(`Mengunduh ${currentSelectedMd}...`, "success");
+    } else {
+      window.location.href = `/api/download/${encodeURIComponent(currentSelectedMd)}`;
+    }
   });
 
   if (downloadAllBtn) {
@@ -498,18 +612,33 @@ document.addEventListener("DOMContentLoaded", () => {
       
       showToast(`Berhasil mengonversi ${data.converted.length} dokumen!`, "success");
 
-      // Auto-download converted files to user's computer if enabled
+      // Save converted documents to client memory & localStorage cache
+      if (data.converted) {
+        data.converted.forEach(item => {
+          if (item && item.md_filename) {
+            saveToClientCache(item);
+          }
+        });
+      }
+
+      // Auto-download converted files if enabled (instant client Blob download)
       const isAutoDownload = autoDownloadToggle ? autoDownloadToggle.checked : true;
       if (isAutoDownload && data.converted) {
         data.converted.forEach((item, idx) => {
           if (item.md_filename) {
             setTimeout(() => {
-              const a = document.createElement("a");
-              a.href = `/api/download/${encodeURIComponent(item.md_filename)}`;
-              a.download = item.md_filename;
-              document.body.appendChild(a);
-              a.click();
-              document.body.removeChild(a);
+              let downloaded = false;
+              if (item.raw_markdown) {
+                downloaded = downloadMarkdownBlob(item.md_filename, item.raw_markdown);
+              }
+              if (!downloaded) {
+                const a = document.createElement("a");
+                a.href = `/api/download/${encodeURIComponent(item.md_filename)}`;
+                a.download = item.md_filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+              }
               showToast(`File ${item.md_filename} otomatis diunduh!`, "success");
             }, idx * 400);
           }
@@ -524,9 +653,12 @@ document.addEventListener("DOMContentLoaded", () => {
         const firstConverted = data.converted[0];
         await loadDocuments(firstConverted ? firstConverted.md_filename : null);
         
-        // Auto-transition to reader on mobile after conversion
-        if (window.innerWidth <= 768 && firstConverted) {
-          setMobileView("reader");
+        // Auto-select and transition to reader
+        if (firstConverted) {
+          selectDocument(firstConverted.md_filename, firstConverted.filename);
+          if (window.innerWidth <= 768) {
+            setMobileView("reader");
+          }
         }
       }, 1000);
       

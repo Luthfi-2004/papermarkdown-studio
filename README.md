@@ -1,7 +1,8 @@
 # PaperMarkdown Studio 📄➡️📝
 
-> **Layout-Aware Academic PDF to Structured Markdown Converter for AI & Large Language Models.**
+> **Layout-Aware Academic PDF & Word to Structured Markdown Converter for AI, Large Language Models, and Thesis Writing.**
 
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FLuthfi-2004%2Fpapermarkdown-studio)
 [![Docker Ready](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
 [![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -17,101 +18,88 @@ Sebagian besar alat ekstraksi PDF standar (*naive parser*) memecah dokumen ilmia
 3. **Kata Terpenggal**: Tanda hubung di ujung baris memotong kata ilmiah (misal `predik-` di baris 1 dan `si` di baris 2).
 
 **PaperMarkdown Studio** memecahkan masalah ini dengan sistem rekonstruksi layout pintar dan perangkat bantu skripsi:
+- ✅ **Akses Web & Mobile Cloud via Vercel**: Dapat diakses kapan saja dan di mana saja dari browser smartphone tanpa perlu menyalakan komputer atau Docker.
 - ✅ **Dukungan PDF & Microsoft Word (.docx / .doc)**: Ubah artikel jurnal PDF maupun draf naskah skripsi Word menjadi Markdown bersih siap AI.
 - ✅ **Deteksi Kolom Alami (*Gutter Detection*)**: Membaca kolom kiri sampai tuntas sebelum membaca kolom kanan pada paper jurnal ilmiah.
 - ✅ **Preservasi Tabel Terformat**: Mengubah tabel dokumen menjadi tabel Markdown (`| Kolom | ... |`) yang presisi.
+- ✅ **Unduh Instan & Auto-Download**: Dokumen langsung terunduh secara otomatis atau via tombol unduh Blob tanpa ketergantungan server.
 - ✅ **Asisten Prompt Skripsi AI**: Template prompt siap salin ke ChatGPT/Claude/Gemini untuk evaluasi Bab 1 (Latar Belakang), Bab 2 (Tinjauan Pustaka), Bab 3 (Metodologi LSTM/XGBoost), Bab 4 (Hasil Pembahasan), Bab 5 (Kesimpulan), dan Format Sitasi.
 - ✅ **Daftar Isi & Navigasi Bab Otomatis**: Drawer outline interaktif untuk melompat langsung ke Bab atau Subbab tertentu.
 - ✅ **Statistik Skripsi**: Perhitungan jumlah kata, estimasi waktu baca, jumlah bab, dan jumlah tabel secara instan.
 - ✅ **Layar Presentasi Glassmorphism & Responsif Mobile**: Navigasi dinamis dengan Floating Glass Dock di smartphone dan layar baca fokus di desktop.
-- ✅ **100% Berjalan di Docker**: Tanpa perlu instalasi Python lokal di komputer Anda.
 
 ---
 
-## 🏗️ Alur Kerja Sistem (Architecture)
+## 📱 Panduan Deploy ke Vercel (Gratis & Siap Pakai di HP)
 
-```
-┌──────────────────┐     ┌────────────────────────────────────────────────────────┐     ┌───────────────────────┐
-│ Dokumen PDF      │     │ Pipeline Rekonstruksi Layout                           │     │ Output Markdown Siap  │
-│ (1 Kolom /       │ ──> │ 1. Deteksi Gutter & Separator Kolom                    │ ──> │ untuk Prompt / RAG AI │
-│  2 Kolom Ilmiah) │     │ 2. Isolasi Tabel ke Markdown Table Syntax              │     │ (Presisi, Utuh,       │
-│                  │     │ 3. Perbaikan Pemenggalan Kata & Heading Terstruktur    │     │  Tabel & Halaman Rapi)│
-└──────────────────┘     └────────────────────────────────────────────────────────┘     └───────────────────────┘
-```
+Repositori ini sudah dilengkapi konfigurasi serverless (`vercel.json` dan `api/index.py`). Anda dapat menerapkannya secara gratis ke Vercel hanya dalam 2 menit:
+
+### Langkah 1: Hubungkan ke Vercel
+1. Buka [vercel.com](https://vercel.com/) dan masuk menggunakan akun **GitHub** Anda.
+2. Di halaman Dashboard Vercel, klik tombol **"Add New..."** lalu pilih **"Project"**.
+3. Temukan repositori **`papermarkdown-studio`** dari daftar repositori GitHub Anda, kemudian klik tombol **"Import"**.
+
+### Langkah 2: Deploy Project
+1. Pada form konfigurasi:
+   - **Framework Preset**: Biarkan `Other` (Vercel otomatis membaca konfigurasi `vercel.json`).
+   - **Root Directory**: Biarkan `./`.
+   - **Build and Output Settings**: Tidak perlu diubah.
+2. Klik tombol biru **"Deploy"**.
+3. Tunggu proses build selesai sekitar 1 - 2 menit.
+4. Selamat! Vercel akan memberikan tautan website publik aktif (contoh: `https://papermarkdown-studio.vercel.app`).
+
+### Langkah 3: Akses dan Simpan di HP
+1. Buka tautan Vercel tersebut di browser smartphone Anda (Google Chrome di Android atau Safari di iPhone).
+2. **Jadikan Aplikasi Layar Utama (PWA / Add to Home Screen)**:
+   - **Di Android (Chrome)**: Ketuk ikon titik tiga di pojok kanan atas, lalu pilih **"Tambahkan ke Layar Utama" (Add to Home screen)**.
+   - **Di iPhone (Safari)**: Ketuk ikon Share (kotak dengan panah ke atas) di bagian bawah, scroll dan pilih **"Tambahkan ke Layar Utama" (Add to Home Screen)**.
+3. Sekarang PaperMarkdown Studio telah terpasang seperti aplikasi native di handphone Anda. Anda dapat langsung mengunggah PDF atau file Word skripsi dari memori HP dan mengunduh hasilnya seketika!
 
 ---
 
-## 🚀 Panduan Memulai Cepat (Quickstart)
+## 💻 Panduan Menjalankan Lokal
 
-### Cara 1: Menggunakan Docker (Rekomendasi Utama)
-
-Anda tidak memerlukan Python di komputer Anda. Cukup pastikan **Docker Desktop** sedang berjalan.
+### Cara 1: Menggunakan Docker
+Pastikan Docker Desktop aktif di komputer Anda:
 
 #### Di Windows:
-Cukup klik ganda file:
+Klik ganda file:
 ```cmd
 start.bat
 ```
-Atau jalankan perintah berikut di PowerShell / Terminal:
+Atau jalankan perintah:
 ```powershell
 docker compose up -d --build
 ```
 
 #### Di Linux / macOS:
-Jalankan script bash:
 ```bash
 chmod +x start.sh
 ./start.sh
 ```
-
-Buka browser Anda dan akses antarmuka web di:
-👉 **http://localhost:5000**
+Buka browser di **http://localhost:5000**.
 
 ---
 
-### Cara 2: Menjalankan Langsung dengan Python (Bagi Pengembang)
-
-Jika komputer Anda telah memiliki Python 3.11+:
-
+### Cara 2: Menjalankan Langsung dengan Python
 ```bash
 # 1. Pasang dependensi
 pip install -r requirements.txt
 
-# 2. Jalankan Web UI
+# 2. Jalankan server
 python -m app.server
 ```
 
 ---
 
-### Cara 3: Mode CLI (Command Line Batch Processing)
-
-Untuk mengonversi ratusan dokumen PDF sekaligus tanpa membuka antarmuka web:
-
+### Cara 3: Mode CLI (Batch Processing)
 ```bash
-# Mengonversi seluruh PDF di folder input_pdfs/ ke output_markdown/
+# Konversi seluruh dokumen di folder input_pdfs/ ke output_markdown/
 python -m app.cli --input input_pdfs --output output_markdown
 
-# Atau konversi satu file spesifik
+# Atau satu file spesifik
 python -m app.cli --single "input_pdfs/nama_artikel.pdf" --output output_markdown
 ```
-
-Jika menggunakan Docker CLI:
-```bash
-docker run --rm -v "${PWD}:/app" papermarkdown-studio python -m app.cli
-```
-
----
-
-## 🖥️ Fitur Web Interface (UI)
-
-Antarmuka web dibangun dengan standar estetika tinggi (*Anti-Slop Design Principles*), tanpa elemen dekorasi generik yang tidak bertujuan:
-- **Drag & Drop Upload**: Cukup seret file PDF langsung ke layar untuk auto-konversi instan.
-- **Dual-View**: Beralih antara **Tampilan Terformat (Rendered)** dan **Kode Markdown Mentah (Raw)**.
-- **1-Klik Salin Teks**: Tombol salin ke clipboard untuk langsung Anda tempel ke prompt AI.
-- **Unduh File (.md)**: Unduh hasil konversi langsung dari browser.
-- **Filter Pencarian**: Cari dokumen berdasarkan topik, saham, atau metode dalam hitungan milidetik.
-- **Dual Theme**: Tersedia mode Gelap (Dark Mode) dan Terang (Light Mode) yang nyaman untuk membaca.
-- **Aksesibilitas Penuh**: Navigasi keyboard terstruktur dengan target sentuh responsif di perangkat mobile maupun desktop.
 
 ---
 
@@ -119,26 +107,30 @@ Antarmuka web dibangun dengan standar estetika tinggi (*Anti-Slop Design Princip
 
 ```text
 papermarkdown-studio/
-├── .dockerignore              # Konfigurasi ignore untuk Docker build
-├── .gitignore                # Konfigurasi ignore untuk Git
-├── LICENSE                   # Lisensi open-source (MIT)
-├── README.md                 # Dokumentasi lengkap proyek
-├── Dockerfile                # Image container mandiri berbasis Python Slim
-├── docker-compose.yml        # Konfigurasi 1-command startup
-├── requirements.txt          # Dependensi Python
-├── start.bat                 # 1-klik starter untuk pengguna Windows
-├── start.sh                  # 1-klik starter untuk pengguna Linux / macOS
+├── api/
+│   └── index.py              # WSGI Entrypoint untuk Vercel Serverless Function
 ├── app/
 │   ├── __init__.py           # Package initializer
-│   ├── converter_engine.py   # Engine ekstraksi multi-kolom dan tabel
+│   ├── converter_engine.py   # Engine ekstraksi PDF, DOCX, DOC dan tabel
 │   ├── cli.py                # Command Line Interface untuk batch parsing
-│   ├── server.py             # Server Flask backend dan REST API
-│   └── static/               # Frontend antarmuka web
-│       ├── index.html        # Struktur antarmuka
-│       ├── style.css         # Styling modern bebas slop
-│       └── app.js            # Interaktivitas client-side
-├── input_pdfs/               # Direktori penyimpanan file PDF
-└── output_markdown/          # Direktori penyimpanan hasil Markdown
+│   ├── server.py             # Backend Flask (Mendukung lokal & Vercel /tmp)
+│   └── static/               # Frontend antarmuka web Glassmorphism
+│       ├── index.html        # Struktur antarmuka responsif mobile & desktop
+│       ├── style.css         # Styling Glassmorphism dan Floating Mobile Dock
+│       └── app.js            # Logika client-side, local caching, dan Blob download
+├── input_pdfs/               # Direktori input dokumen lokal (.gitkeep)
+├── output_markdown/          # Direktori output hasil Markdown lokal (.gitkeep)
+├── .dockerignore              # Konfigurasi ignore Docker
+├── .gitignore                # Konfigurasi ignore Git (mengabaikan .vercel dan cache)
+├── vercel.json               # Konfigurasi rewrite & serverless Vercel
+├── Dockerfile                # Docker container Python Slim
+├── docker-compose.yml        # Konfigurasi Docker Compose
+├── requirements.txt          # Dependensi Python
+├── start.bat                 # 1-klik starter Windows
+├── start.sh                  # 1-klik starter Linux/macOS
+├── LICENSE                   # Lisensi open-source (MIT)
+├── README.md                 # Dokumentasi lengkap
+└── DESIGN.md                 # Prinsip desain Anti-Slop
 ```
 
 ---
@@ -147,22 +139,12 @@ papermarkdown-studio/
 
 | Method | Endpoint | Deskripsi |
 |---|---|---|
-| `GET` | `/api/documents` | Mengambil daftar seluruh dokumen PDF dan status Markdown |
-| `POST` | `/api/upload` | Mengunggah satu atau banyak file PDF dan langsung mengonversinya |
-| `GET` | `/api/document/<filename>` | Mengambil isi Markdown mentah beserta HTML hasil render |
-| `POST` | `/api/convert/<filename>` | Menjalankan konversi on-demand untuk PDF tertentu |
-| `GET` | `/api/download/<filename>` | Mengunduh file `.md` langsung ke komputer |
-
----
-
-## 🤝 Berkontribusi (Contributing)
-
-Kontribusi sangat terbuka! Jika Anda ingin menambahkan parser formula LaTeX yang lebih kaya atau dukungan format lainnya:
-1. Fork repositori ini.
-2. Buat branch fitur baru (`git checkout -b fitur/ekstraksi-baru`).
-3. Commit perubahan Anda (`git commit -m 'Menambahkan fitur ekstraksi baru'`).
-4. Push ke branch Anda (`git push origin fitur/ekstraksi-baru`).
-5. Buat Pull Request.
+| `GET` | `/api/documents` | Mengambil daftar seluruh dokumen dan status konversinya |
+| `POST` | `/api/upload` | Mengunggah satu atau banyak file (PDF/DOCX/DOC), langsung mengonversi dan mengembalikan data lengkap |
+| `GET` | `/api/document/<filename>` | Mengambil isi Markdown mentah, HTML render, statistik, dan heading |
+| `POST` | `/api/convert/<filename>` | Menjalankan konversi on-demand untuk dokumen tertentu |
+| `GET` | `/api/download/<filename>` | Mengunduh file `.md` langsung |
+| `GET` | `/api/download-all` | Mengunduh seluruh Markdown yang ada dalam format `.zip` |
 
 ---
 
