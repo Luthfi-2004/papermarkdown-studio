@@ -1,11 +1,10 @@
-// PaperMarkdown Studio - Family-Friendly Glassmorphism Presentation UI Logic
+// PaperMarkdown - Simple & Instant PDF & Word (.docx) to Markdown Converter
 
 document.addEventListener("DOMContentLoaded", () => {
   // Elements
   const docListEl = document.getElementById("doc-list");
   const docCounterEl = document.getElementById("doc-counter");
   const badgeCountEl = document.getElementById("badge-count");
-  const searchInput = document.getElementById("search-input");
   const emptySearchEl = document.getElementById("empty-search");
   
   const activeTitleEl = document.getElementById("active-doc-title");
@@ -19,13 +18,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const copyBtn = document.getElementById("copy-btn");
   const copyBtnText = document.getElementById("copy-btn-text");
   const downloadBtn = document.getElementById("download-btn");
-  
-  const fontDecreaseBtn = document.getElementById("font-decrease-btn");
-  const fontIncreaseBtn = document.getElementById("font-increase-btn");
-  const fontSizeLabel = document.getElementById("font-size-label");
-  const togglePresentationBtn = document.getElementById("toggle-presentation-btn");
-  const sidebarPanel = document.getElementById("sidebar-panel");
-  const presentationScreen = document.getElementById("presentation-screen");
+  const downloadAllBtn = document.getElementById("download-all-btn");
+  const autoDownloadToggle = document.getElementById("auto-download-toggle");
   
   const dropzone = document.getElementById("dropzone");
   const fileInput = document.getElementById("file-input");
@@ -36,96 +30,19 @@ document.addEventListener("DOMContentLoaded", () => {
   
   const themeToggleBtn = document.getElementById("theme-toggle-btn");
   const toastEl = document.getElementById("toast");
-  
-  // Mobile Dynamic Elements (R-03)
-  const appContainer = document.getElementById("app-container");
-  const mobileBackBtn = document.getElementById("mobile-back-btn");
-  const mobileNavList = document.getElementById("mobile-nav-list");
-  const mobileNavUpload = document.getElementById("mobile-nav-upload");
-  const mobileNavReader = document.getElementById("mobile-nav-reader");
 
-  // Skripsi Tools & Outline Elements
-  const downloadAllBtn = document.getElementById("download-all-btn");
-  const autoDownloadToggle = document.getElementById("auto-download-toggle");
-  const skripsiToolsBtn = document.getElementById("skripsi-tools-btn");
-  const toggleOutlineBtn = document.getElementById("toggle-outline-btn");
-  const outlineDrawer = document.getElementById("outline-drawer");
-  const closeOutlineBtn = document.getElementById("close-outline-btn");
-  const outlineList = document.getElementById("outline-list");
-
-  const skripsiStatsBar = document.getElementById("skripsi-stats-bar");
-  const statWords = document.getElementById("stat-words");
-  const statReading = document.getElementById("stat-reading");
-  const statHeadings = document.getElementById("stat-headings");
-  const statTables = document.getElementById("stat-tables");
-
-  const skripsiModal = document.getElementById("skripsi-modal");
-  const closeSkripsiModalBtn = document.getElementById("close-skripsi-modal-btn");
-  const promptCards = document.querySelectorAll(".prompt-card");
-  const promptPreviewTextarea = document.getElementById("prompt-preview-textarea");
-  const copyFullPromptBtn = document.getElementById("copy-full-prompt-btn");
-  const copyPromptBtnText = document.getElementById("copy-prompt-btn-text");
-  
+  // State: In-Memory Only (Clean on every refresh as requested)
   let allDocuments = [];
   let currentSelectedMd = null;
   let currentRawMarkdown = "";
-  let fontScalePercent = 100;
-  let isPresentationMode = false;
-  let activeMobileTab = "list";
-  let activePromptId = "bab1";
+  let turndownServiceInstance = null;
 
-  // Client-side document memory & localStorage cache
-  const clientDocCache = new Map();
+  // Clear any past cached documents so refresh always starts 100% clean
+  try {
+    localStorage.removeItem("papermarkdown-cached-docs");
+  } catch (_) {}
 
-  function downloadMarkdownBlob(filename, content) {
-    if (!content) return false;
-    try {
-      const blob = new Blob([content], { type: "text/markdown;charset=utf-8" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = filename.endsWith(".md") ? filename : `${filename}.md`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
-      return true;
-    } catch (err) {
-      console.error("Blob download error:", err);
-      return false;
-    }
-  }
-
-  function saveToClientCache(docData) {
-    if (!docData || !docData.md_filename) return;
-    clientDocCache.set(docData.md_filename, docData);
-    try {
-      const list = JSON.parse(localStorage.getItem("papermarkdown-cached-docs") || "[]");
-      const existingIndex = list.findIndex(d => d.md_filename === docData.md_filename);
-      const itemToStore = {
-        filename: docData.filename,
-        md_filename: docData.md_filename,
-        file_type: docData.file_type || docData.type || "pdf",
-        size_bytes: docData.size_bytes || (docData.raw_markdown ? docData.raw_markdown.length : 1024),
-        has_markdown: true,
-        raw_markdown: docData.raw_markdown,
-        rendered_html: docData.rendered_html,
-        stats: docData.stats,
-        headings: docData.headings,
-        timestamp: Date.now()
-      };
-      if (existingIndex >= 0) {
-        list[existingIndex] = itemToStore;
-      } else {
-        list.unshift(itemToStore);
-      }
-      localStorage.setItem("papermarkdown-cached-docs", JSON.stringify(list.slice(0, 25)));
-    } catch (e) {
-      console.warn("Storage quota exceeded or error caching doc:", e);
-    }
-  }
-  
-  // 1. Theme Management (R-21, R-34)
+  // 1. Theme Management
   const savedTheme = localStorage.getItem("papermarkdown-theme") || "dark";
   document.documentElement.setAttribute("data-theme", savedTheme);
   
@@ -136,83 +53,8 @@ document.addEventListener("DOMContentLoaded", () => {
     localStorage.setItem("papermarkdown-theme", newTheme);
     showToast(`Tema beralih ke mode ${newTheme === "dark" ? "gelap" : "terang"}`);
   });
-  
-  // 1b. Dynamic Mobile View Controller (R-03)
-  function setMobileView(view) {
-    activeMobileTab = view;
-    if (appContainer) {
-      appContainer.setAttribute("data-mobile-view", view);
-    }
-    document.body.setAttribute("data-mobile-view", view);
-    
-    if (mobileNavList) mobileNavList.classList.toggle("active", view === "list");
-    if (mobileNavUpload) mobileNavUpload.classList.toggle("active", view === "upload");
-    if (mobileNavReader) mobileNavReader.classList.toggle("active", view === "reader");
-    
-    // Smooth scroll active panel to top
-    if (view === "reader") {
-      const renderedPane = document.getElementById("view-rendered");
-      if (renderedPane) renderedPane.scrollTop = 0;
-    } else if (view === "list") {
-      const docList = document.getElementById("doc-list");
-      if (docList) docList.scrollTop = 0;
-    }
-  }
-  
-  if (mobileNavList) mobileNavList.addEventListener("click", () => setMobileView("list"));
-  if (mobileNavUpload) mobileNavUpload.addEventListener("click", () => setMobileView("upload"));
-  if (mobileNavReader) mobileNavReader.addEventListener("click", () => setMobileView("reader"));
-  if (mobileBackBtn) mobileBackBtn.addEventListener("click", () => setMobileView("list"));
-  
-  // Initial mobile view
-  setMobileView("list");
-  
-  // 2. Font Zoom Controls for Family/Presentation Reading
-  function updateFontScale() {
-    fontSizeLabel.textContent = `${fontScalePercent}%`;
-    document.documentElement.style.setProperty("--doc-font-scale", `${fontScalePercent / 100}rem`);
-  }
-  
-  fontDecreaseBtn.addEventListener("click", () => {
-    if (fontScalePercent > 80) {
-      fontScalePercent -= 10;
-      updateFontScale();
-    }
-  });
-  
-  fontIncreaseBtn.addEventListener("click", () => {
-    if (fontScalePercent < 150) {
-      fontScalePercent += 10;
-      updateFontScale();
-    }
-  });
-  
-  // 3. Presentation Focus Mode (Hides/Shows Sidebar)
-  togglePresentationBtn.addEventListener("click", () => {
-    isPresentationMode = !isPresentationMode;
-    if (isPresentationMode) {
-      sidebarPanel.classList.add("hidden-presentation");
-      togglePresentationBtn.classList.add("active");
-      togglePresentationBtn.setAttribute("title", "Kembalikan Tampilan Standar");
-      showToast("Mode Layar Penuh Presentasi Aktif (Tekan Esc untuk keluar)");
-    } else {
-      sidebarPanel.classList.remove("hidden-presentation");
-      togglePresentationBtn.classList.remove("active");
-      togglePresentationBtn.setAttribute("title", "Mode Layar Penuh / Fokus Membaca");
-    }
-  });
-  
-  // Esc key to exit presentation mode
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && isPresentationMode) {
-      isPresentationMode = false;
-      sidebarPanel.classList.remove("hidden-presentation");
-      togglePresentationBtn.classList.remove("active");
-      togglePresentationBtn.setAttribute("title", "Mode Layar Penuh / Fokus Membaca");
-    }
-  });
-  
-  // 4. Tab Navigation
+
+  // 2. Tab Navigation (Rendered vs Raw)
   function switchTab(mode) {
     if (mode === "rendered") {
       tabRenderedBtn.classList.add("active");
@@ -233,365 +75,28 @@ document.addEventListener("DOMContentLoaded", () => {
   
   tabRenderedBtn.addEventListener("click", () => switchTab("rendered"));
   tabRawBtn.addEventListener("click", () => switchTab("raw"));
-  
-  // 5. Load Documents from API & Client Storage
-  async function loadDocuments(selectAfterLoad = null) {
-    let cachedList = [];
+
+  // 3. Blob Download Helper
+  function downloadMarkdownBlob(filename, content) {
+    if (!content) return false;
     try {
-      const stored = JSON.parse(localStorage.getItem("papermarkdown-cached-docs") || "[]");
-      if (Array.isArray(stored)) {
-        stored.forEach(d => {
-          if (d && d.md_filename) {
-            clientDocCache.set(d.md_filename, d);
-            cachedList.push(d);
-          }
-        });
-      }
-    } catch (e) {
-      console.warn("Error reading local cached docs:", e);
-    }
-
-    try {
-      const res = await fetch("/api/documents");
-      const cType = res.headers.get("content-type") || "";
-      if (res.ok && cType.includes("application/json")) {
-        const data = await res.json();
-        let serverDocs = [];
-        if (data && data.success && Array.isArray(data.documents)) {
-          serverDocs = data.documents;
-        }
-        
-        const mergedMap = new Map();
-        serverDocs.forEach(d => mergedMap.set(d.md_filename || d.filename, d));
-        cachedList.forEach(d => {
-          const key = d.md_filename || d.filename;
-          if (!mergedMap.has(key)) {
-            mergedMap.set(key, d);
-          }
-        });
-
-        allDocuments = Array.from(mergedMap.values());
-      } else {
-        allDocuments = cachedList;
-      }
-    } catch (_) {
-      allDocuments = cachedList;
-    }
-
-    renderDocList(allDocuments);
-    
-    const count = allDocuments.length;
-    docCounterEl.textContent = `${count} Dokumen Siap`;
-    badgeCountEl.textContent = `${count} file`;
-
-    const readyDocs = allDocuments.filter(d => d.has_markdown);
-    if (downloadAllBtn) {
-      downloadAllBtn.style.display = readyDocs.length > 0 ? "inline-flex" : "none";
-    }
-    
-    if (selectAfterLoad) {
-      const item = allDocuments.find(d => d.md_filename === selectAfterLoad || d.filename === selectAfterLoad);
-      if (item && item.md_filename) {
-        selectDocument(item.md_filename, item.filename);
-      }
-    } else if (!currentSelectedMd && allDocuments.length > 0) {
-      const firstReady = allDocuments.find(d => d.has_markdown);
-      if (firstReady) {
-        selectDocument(firstReady.md_filename, firstReady.filename);
-      }
-    }
-  }
-  
-  // 6. Render Document List
-  function renderDocList(docs) {
-    docListEl.innerHTML = "";
-    
-    if (docs.length === 0) {
-      emptySearchEl.classList.remove("hidden");
-      return;
-    }
-    emptySearchEl.classList.add("hidden");
-    
-    docs.forEach(doc => {
-      const itemEl = document.createElement("button");
-      itemEl.className = "doc-item";
-      if (doc.md_filename && doc.md_filename === currentSelectedMd) {
-        itemEl.classList.add("active");
-      }
-      
-      const sizeKB = (doc.size_bytes / 1024).toFixed(0);
-      const isReady = doc.has_markdown;
-      
-      const ext = doc.filename.split('.').pop().toLowerCase();
-      const badgeTypeClass = ext === 'docx' ? 'docx' : (ext === 'doc' ? 'doc' : 'pdf');
-      const badgeTypeText = ext.toUpperCase();
-
-      itemEl.innerHTML = `
-        <div class="doc-item-title" title="${escapeHtml(doc.filename)}">
-          <span class="doc-type-badge ${badgeTypeClass}">${badgeTypeText}</span>
-          ${escapeHtml(doc.filename.replace(/\.(pdf|docx|doc)$/i, ''))}
-        </div>
-        <div class="doc-item-meta">
-          <span>${sizeKB} KB</span>
-          <div style="display:flex; align-items:center; gap:6px;">
-            <span class="status-tag ${isReady ? 'ready' : 'pending'}">
-              ${isReady ? 'Siap Baca' : 'Perlu Konversi'}
-            </span>
-            ${isReady ? `
-              <span class="quick-download-btn" title="Unduh Markdown langsung (.md)" data-file="${escapeHtml(doc.md_filename)}">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-              </span>
-            ` : ''}
-          </div>
-        </div>
-      `;
-      
-      const qBtn = itemEl.querySelector(".quick-download-btn");
-      if (qBtn) {
-        qBtn.addEventListener("click", (e) => {
-          e.stopPropagation();
-          const targetMd = qBtn.getAttribute("data-file");
-          if (targetMd) {
-            const cached = clientDocCache.get(targetMd);
-            if (cached && cached.raw_markdown) {
-              downloadMarkdownBlob(targetMd, cached.raw_markdown);
-              showToast(`Mengunduh ${targetMd}...`, "success");
-            } else {
-              window.location.href = `/api/download/${encodeURIComponent(targetMd)}`;
-              showToast(`Mengunduh ${targetMd}...`, "success");
-            }
-          }
-        });
-      }
-
-      itemEl.addEventListener("click", () => {
-        if (doc.has_markdown) {
-          selectDocument(doc.md_filename, doc.filename);
-        } else {
-          convertSingle(doc.filename);
-        }
-      });
-      
-      docListEl.appendChild(itemEl);
-    });
-  }
-  
-  // 6b. Apply Document Details to UI
-  function applyDocumentData(data, origName) {
-    if (!data) return;
-    const displayName = origName ? origName.replace(/\.(pdf|docx|doc)$/i, '') : (data.filename || data.md_filename || "").replace(/\.(pdf|docx|doc|md)$/i, '');
-    activeTitleEl.textContent = displayName;
-    renderedContentEl.innerHTML = data.rendered_html || `<div class="empty-state"><p>Tidak ada konten.</p></div>`;
-    rawContentEl.value = data.raw_markdown || "";
-    currentRawMarkdown = data.raw_markdown || "";
-    
-    copyBtn.disabled = !currentRawMarkdown;
-    downloadBtn.disabled = !currentRawMarkdown;
-    if (skripsiToolsBtn) skripsiToolsBtn.disabled = !currentRawMarkdown;
-
-    // Update Skripsi Stats Bar
-    if (data.stats && skripsiStatsBar) {
-      skripsiStatsBar.classList.remove("hidden");
-      if (statWords) statWords.textContent = `${data.stats.word_count.toLocaleString()} Kata`;
-      if (statReading) statReading.textContent = `${data.stats.reading_time_min} Menit Baca`;
-      if (statHeadings) statHeadings.textContent = `${data.stats.headings_count} Bab / Subbab`;
-      if (statTables) statTables.textContent = `${data.stats.tables_count} Tabel`;
-    }
-
-    // Update Outline / Table of Contents
-    if (data.headings && data.headings.length > 0) {
-      renderOutline(data.headings);
-      if (toggleOutlineBtn) toggleOutlineBtn.disabled = false;
-    } else {
-      if (toggleOutlineBtn) toggleOutlineBtn.disabled = true;
-      if (outlineDrawer) outlineDrawer.classList.add("hidden");
-    }
-
-    // Refresh Skripsi Prompt Preview with Document Context
-    updatePromptPreview();
-    
-    // Auto-transition to reader on mobile when a document is opened
-    if (window.innerWidth <= 768) {
-      setMobileView("reader");
-    }
-  }
-
-  // 7. Select & Display Document
-  async function selectDocument(mdFilename, origName) {
-    currentSelectedMd = mdFilename;
-    
-    document.querySelectorAll(".doc-item").forEach(el => el.classList.remove("active"));
-    const items = Array.from(docListEl.children);
-    const matched = allDocuments.findIndex(d => d.md_filename === mdFilename);
-    if (matched !== -1 && items[matched]) {
-      items[matched].classList.add("active");
-    }
-
-    // Check client cache first for instant 0ms rendering
-    const cached = clientDocCache.get(mdFilename);
-    if (cached && cached.raw_markdown) {
-      applyDocumentData(cached, origName);
-      return;
-    }
-    
-    activeTitleEl.textContent = origName ? origName.replace(/\.(pdf|docx|doc)$/i, '') : mdFilename;
-    renderedContentEl.innerHTML = `<div class="empty-state"><p>Mempersiapkan layar presentasi artikel...</p></div>`;
-    rawContentEl.value = "Memuat...";
-    
-    copyBtn.disabled = true;
-    downloadBtn.disabled = true;
-    
-    try {
-      const res = await fetch(`/api/document/${encodeURIComponent(mdFilename)}`);
-      const data = await res.json();
-      
-      if (!data.success) {
-        renderedContentEl.innerHTML = `<div class="empty-state"><p>${escapeHtml(data.error || "Gagal membuka dokumen.")}</p></div>`;
-        rawContentEl.value = "";
-        return;
-      }
-      
-      saveToClientCache(data);
-      applyDocumentData(data, origName);
+      const blob = new Blob([content], { type: "text/markdown;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename.endsWith(".md") ? filename : `${filename}.md`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      return true;
     } catch (err) {
-      console.error(err);
-      showToast("Gagal memuat artikel", "error");
+      console.error("Download error:", err);
+      return false;
     }
   }
-  
-  // 8. Convert Specific Document
-  async function convertSingle(pdfFilename) {
-    showToast(`Mengonversi ${pdfFilename}...`);
-    try {
-      const res = await fetch(`/api/convert/${encodeURIComponent(pdfFilename)}`, { method: "POST" });
-      const data = await res.json();
-      if (data.success) {
-        showToast("Konversi berhasil!", "success");
-        await loadDocuments(data.result.md_filename);
-      } else {
-        showToast(`Gagal: ${data.error}`, "error");
-      }
-    } catch (err) {
-      console.error(err);
-      showToast("Terjadi kesalahan saat konversi", "error");
-    }
-  }
-  
-  // 9. Search Filter
-  searchInput.addEventListener("input", (e) => {
-    const q = e.target.value.toLowerCase().trim();
-    if (!q) {
-      renderDocList(allDocuments);
-      return;
-    }
-    const filtered = allDocuments.filter(d => d.filename.toLowerCase().includes(q));
-    renderDocList(filtered);
-  });
-  
-  // 10. Copy to Clipboard
-  copyBtn.addEventListener("click", async () => {
-    if (!rawContentEl.value) return;
-    try {
-      await navigator.clipboard.writeText(rawContentEl.value);
-      copyBtnText.textContent = "Tersalin!";
-      showToast("Markdown berhasil disalin ke clipboard", "success");
-      setTimeout(() => {
-        copyBtnText.textContent = "Salin Teks";
-      }, 2000);
-    } catch (err) {
-      rawContentEl.select();
-      document.execCommand("copy");
-      showToast("Markdown berhasil disalin", "success");
-    }
-  });
-  
-  // 11. Download .md File
-  downloadBtn.addEventListener("click", () => {
-    if (!currentSelectedMd) return;
-    if (currentRawMarkdown) {
-      downloadMarkdownBlob(currentSelectedMd, currentRawMarkdown);
-      showToast(`Mengunduh ${currentSelectedMd}...`, "success");
-    } else {
-      window.location.href = `/api/download/${encodeURIComponent(currentSelectedMd)}`;
-    }
-  });
 
-  if (downloadAllBtn) {
-    downloadAllBtn.addEventListener("click", async () => {
-      const readyDocs = allDocuments.filter(d => d.has_markdown);
-      if (readyDocs.length === 0) {
-        showToast("Belum ada dokumen Markdown untuk diunduh.", "error");
-        return;
-      }
-      
-      if (typeof JSZip !== "undefined") {
-        showToast("Menyiapkan berkas ZIP semua dokumen...");
-        try {
-          const zip = new JSZip();
-          for (const doc of readyDocs) {
-            const cached = clientDocCache.get(doc.md_filename);
-            const content = (cached && cached.raw_markdown) ? cached.raw_markdown : (doc.raw_markdown || `# ${doc.filename}`);
-            zip.file(doc.md_filename, content);
-          }
-          const blob = await zip.generateAsync({ type: "blob" });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement("a");
-          a.href = url;
-          a.download = "Semua_Dokumen_Markdown_Skripsi.zip";
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          setTimeout(() => URL.revokeObjectURL(url), 1000);
-          showToast("Semua dokumen (.zip) berhasil diunduh!", "success");
-        } catch (zipErr) {
-          console.error("ZIP creation error:", zipErr);
-          window.location.href = "/api/download-all";
-        }
-      } else {
-        window.location.href = "/api/download-all";
-      }
-    });
-  }
-  
-  // 12. Drag & Drop Upload
-  dropzone.addEventListener("click", () => fileInput.click());
-  
-  dropzone.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      fileInput.click();
-    }
-  });
-  
-  ["dragenter", "dragover"].forEach(name => {
-    dropzone.addEventListener(name, (e) => {
-      e.preventDefault();
-      dropzone.classList.add("drag-over");
-    });
-  });
-  
-  ["dragleave", "drop"].forEach(name => {
-    dropzone.addEventListener(name, (e) => {
-      e.preventDefault();
-      dropzone.classList.remove("drag-over");
-    });
-  });
-  
-  dropzone.addEventListener("drop", (e) => {
-    const files = e.dataTransfer.files;
-    if (files.length > 0) {
-      handleFilesUpload(files);
-    }
-  });
-  
-  fileInput.addEventListener("change", (e) => {
-    if (e.target.files.length > 0) {
-      handleFilesUpload(e.target.files);
-    }
-  });
-  
-  // 11b. Universal Document Extraction Engines (Word .docx + PDF)
-  let turndownServiceInstance = null;
+  // 4. In-Browser Document Extraction Engines
   function getTurndownService() {
     if (turndownServiceInstance) return turndownServiceInstance;
     if (typeof TurndownService !== "undefined") {
@@ -664,15 +169,10 @@ document.addEventListener("DOMContentLoaded", () => {
     
     let finalMd = "";
     if (!rawMd.trim().startsWith("# ")) {
-      finalMd = `# ${baseName}\n\n> **Metadata Dokumen Word (.docx)**:\n> - **File Asli**: \`${file.name}\`\n> - **Status Dokumen**: Siap Analisis Skripsi & AI\n\n---\n\n` + rawMd;
+      finalMd = `# ${baseName}\n\n> **Metadata Dokumen Word (.docx)**:\n> - **File Asli**: \`${file.name}\`\n> - **Status Dokumen**: Siap Dipakai\n\n---\n\n` + rawMd;
     } else {
       finalMd = rawMd;
     }
-    
-    const words = finalMd.split(/\s+/).filter(Boolean);
-    const wordCount = words.length;
-    const headings = extractHeadingsFromText(finalMd);
-    const tablesCount = (finalMd.match(/\|(?:\s*---\s*\|)+/g) || []).length;
     
     return {
       filename: file.name,
@@ -681,19 +181,11 @@ document.addEventListener("DOMContentLoaded", () => {
       size_bytes: file.size,
       has_markdown: true,
       raw_markdown: finalMd,
-      rendered_html: html || `<pre>${finalMd}</pre>`,
-      stats: {
-        word_count: wordCount,
-        char_count: finalMd.length,
-        reading_time_min: Math.max(1, Math.round(wordCount / 200)),
-        headings_count: headings.length,
-        tables_count: tablesCount
-      },
-      headings: headings
+      rendered_html: html || `<pre>${escapeHtml(finalMd)}</pre>`
     };
   }
 
-  async function parsePdfClientSide(file) {
+  async function convertPdfClientSide(file) {
     if (typeof pdfjsLib === "undefined") {
       throw new Error("Library PDF.js belum selesai dimuat.");
     }
@@ -705,7 +197,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const baseName = file.name.replace(/\.[^/.]+$/, "");
     
     let pagesMd = [];
-    let totalWords = 0;
     
     for (let p = 1; p <= numPages; p++) {
       const page = await pdf.getPage(p);
@@ -737,14 +228,11 @@ document.addEventListener("DOMContentLoaded", () => {
       
       pageText = pageText.replace(/(\w+)-\s*\n\s*(\w+)/g, "$1$2");
       pageText = pageText.replace(/\n{3,}/g, "\n\n");
-      
-      const pageWords = pageText.split(/\s+/).filter(Boolean).length;
-      totalWords += pageWords;
       pagesMd.push(`<!-- PAGE ${p} START -->\n\n${pageText.trim()}\n\n<!-- PAGE ${p} END -->\n\n---\n`);
     }
     
     const mdFilename = baseName.replace(/[^a-zA-Z0-9_\-]/g, "_").slice(0, 60) + ".md";
-    const header = `# ${baseName}\n\n> **Metadata Dokumen PDF**:\n> - **File Asli**: \`${file.name}\`\n> - **Jumlah Halaman**: ${numPages} Halaman\n> - **Status Dokumen**: Siap Analisis Skripsi & AI\n\n---\n\n`;
+    const header = `# ${baseName}\n\n> **Metadata Dokumen PDF**:\n> - **File Asli**: \`${file.name}\`\n> - **Jumlah Halaman**: ${numPages} Halaman\n> - **Status Dokumen**: Siap Dipakai\n\n---\n\n`;
     const rawMd = header + pagesMd.join("\n\n");
     
     const rendered = rawMd
@@ -755,8 +243,6 @@ document.addEventListener("DOMContentLoaded", () => {
       .replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>')
       .replace(/\n/gim, '<br>');
       
-    const headings = extractHeadingsFromText(rawMd);
-    
     return {
       filename: file.name,
       md_filename: mdFilename,
@@ -764,48 +250,153 @@ document.addEventListener("DOMContentLoaded", () => {
       size_bytes: file.size,
       has_markdown: true,
       raw_markdown: rawMd,
-      rendered_html: rendered,
-      stats: {
-        word_count: totalWords,
-        char_count: rawMd.length,
-        reading_time_min: Math.max(1, Math.round(totalWords / 200)),
-        headings_count: headings.length,
-        tables_count: 0
-      },
-      headings: headings
+      rendered_html: rendered
     };
   }
 
   async function convertAnyFileUniversal(file) {
     const ext = file.name.split('.').pop().toLowerCase();
     if (ext === 'docx') {
-      try {
-        return await convertDocxClientSide(file);
-      } catch (e) {
-        console.warn("Client DOCX failed, fallback to server:", e);
-      }
+      return await convertDocxClientSide(file);
     } else if (ext === 'pdf') {
-      try {
-        return await parsePdfClientSide(file);
-      } catch (e) {
-        console.warn("Client PDF failed, fallback to server:", e);
+      return await convertPdfClientSide(file);
+    } else {
+      // Legacy .doc or other formats fallback
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/upload", { method: "POST", body: formData });
+      if (!res.ok) throw new Error(`Status ${res.status}`);
+      const data = await res.json();
+      return data.converted[0];
+    }
+  }
+
+  // 5. Render Document List
+  function renderDocList(docs) {
+    docListEl.innerHTML = "";
+    
+    if (docs.length === 0) {
+      emptySearchEl.classList.remove("hidden");
+      docCounterEl.textContent = "0 Dokumen";
+      badgeCountEl.textContent = "0 file";
+      if (downloadAllBtn) downloadAllBtn.style.display = "none";
+      return;
+    }
+    emptySearchEl.classList.add("hidden");
+    
+    const count = docs.length;
+    docCounterEl.textContent = `${count} Dokumen`;
+    badgeCountEl.textContent = `${count} file`;
+    if (downloadAllBtn) downloadAllBtn.style.display = count > 0 ? "inline-flex" : "none";
+    
+    docs.forEach(doc => {
+      const itemEl = document.createElement("button");
+      itemEl.className = "doc-item";
+      if (doc.md_filename && doc.md_filename === currentSelectedMd) {
+        itemEl.classList.add("active");
       }
+      
+      const sizeKB = (doc.size_bytes / 1024).toFixed(0);
+      const ext = doc.filename.split('.').pop().toLowerCase();
+      const badgeTypeClass = ext === 'docx' ? 'docx' : 'pdf';
+      const badgeTypeText = ext.toUpperCase();
+
+      itemEl.innerHTML = `
+        <div class="doc-item-title" title="${escapeHtml(doc.filename)}">
+          <span class="doc-type-badge ${badgeTypeClass}">${badgeTypeText}</span>
+          ${escapeHtml(doc.filename.replace(/\.(pdf|docx|doc)$/i, ''))}
+        </div>
+        <div class="doc-item-meta">
+          <span>${sizeKB} KB</span>
+          <div style="display:flex; align-items:center; gap:6px;">
+            <span class="status-tag ready">Siap</span>
+            <span class="quick-download-btn" title="Unduh Markdown langsung (.md)" data-file="${escapeHtml(doc.md_filename)}">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            </span>
+          </div>
+        </div>
+      `;
+      
+      const qBtn = itemEl.querySelector(".quick-download-btn");
+      if (qBtn) {
+        qBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const targetMd = qBtn.getAttribute("data-file");
+          const targetDoc = allDocuments.find(d => d.md_filename === targetMd);
+          if (targetDoc && targetDoc.raw_markdown) {
+            downloadMarkdownBlob(targetDoc.md_filename, targetDoc.raw_markdown);
+            showToast(`Mengunduh ${targetDoc.md_filename}...`, "success");
+          }
+        });
+      }
+
+      itemEl.addEventListener("click", () => {
+        selectDocument(doc.md_filename);
+      });
+      
+      docListEl.appendChild(itemEl);
+    });
+  }
+
+  // 6. Select & Display Document
+  function selectDocument(mdFilename) {
+    currentSelectedMd = mdFilename;
+    
+    document.querySelectorAll(".doc-item").forEach(el => el.classList.remove("active"));
+    const items = Array.from(docListEl.children);
+    const matched = allDocuments.findIndex(d => d.md_filename === mdFilename);
+    if (matched !== -1 && items[matched]) {
+      items[matched].classList.add("active");
     }
 
-    // Server fallback for .doc or if client engines fail
-    const formData = new FormData();
-    formData.append("file", file);
-    const res = await fetch("/api/upload", { method: "POST", body: formData });
-    if (!res.ok) {
-      if (res.status === 413) {
-        throw new Error("Ukuran file melebihi batas 4.5 MB Vercel Serverless.");
-      }
-      throw new Error(`Server error ${res.status}`);
-    }
-    const data = await res.json();
-    if (!data.success) throw new Error(data.error || "Gagal konversi");
-    return data.converted[0];
+    const doc = allDocuments.find(d => d.md_filename === mdFilename);
+    if (!doc) return;
+
+    activeTitleEl.textContent = doc.filename.replace(/\.(pdf|docx|doc)$/i, '');
+    renderedContentEl.innerHTML = doc.rendered_html || `<div class="empty-state"><p>Tidak ada konten.</p></div>`;
+    rawContentEl.value = doc.raw_markdown || "";
+    currentRawMarkdown = doc.raw_markdown || "";
+    
+    copyBtn.disabled = !currentRawMarkdown;
+    downloadBtn.disabled = !currentRawMarkdown;
   }
+
+  // 7. Drag & Drop Upload
+  dropzone.addEventListener("click", () => fileInput.click());
+  
+  dropzone.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      fileInput.click();
+    }
+  });
+  
+  ["dragenter", "dragover"].forEach(name => {
+    dropzone.addEventListener(name, (e) => {
+      e.preventDefault();
+      dropzone.classList.add("drag-over");
+    });
+  });
+  
+  ["dragleave", "drop"].forEach(name => {
+    dropzone.addEventListener(name, (e) => {
+      e.preventDefault();
+      dropzone.classList.remove("drag-over");
+    });
+  });
+  
+  dropzone.addEventListener("drop", (e) => {
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+      handleFilesUpload(files);
+    }
+  });
+  
+  fileInput.addEventListener("change", (e) => {
+    if (e.target.files.length > 0) {
+      handleFilesUpload(e.target.files);
+    }
+  });
 
   async function handleFilesUpload(files) {
     const validFiles = Array.from(files).filter(f => {
@@ -813,7 +404,7 @@ document.addEventListener("DOMContentLoaded", () => {
       return name.endsWith(".pdf") || name.endsWith(".docx") || name.endsWith(".doc");
     });
     if (validFiles.length === 0) {
-      showToast("Mohon pilih file berekstensi .pdf, .docx, atau .doc", "error");
+      showToast("Mohon pilih file berekstensi .pdf atau .docx", "error");
       return;
     }
 
@@ -822,7 +413,7 @@ document.addEventListener("DOMContentLoaded", () => {
     percentLabel.textContent = "10%";
     statusLabel.textContent = `Mengekstrak ${validFiles.length} file...`;
 
-    const convertedDocs = [];
+    const newlyConverted = [];
 
     for (let i = 0; i < validFiles.length; i++) {
       const file = validFiles[i];
@@ -834,8 +425,14 @@ document.addEventListener("DOMContentLoaded", () => {
       try {
         const item = await convertAnyFileUniversal(file);
         if (item) {
-          saveToClientCache(item);
-          convertedDocs.push(item);
+          // Add or replace in session array
+          const existingIdx = allDocuments.findIndex(d => d.md_filename === item.md_filename);
+          if (existingIdx >= 0) {
+            allDocuments[existingIdx] = item;
+          } else {
+            allDocuments.unshift(item);
+          }
+          newlyConverted.push(item);
 
           // Auto-download per file if enabled
           const isAutoDownload = autoDownloadToggle ? autoDownloadToggle.checked : true;
@@ -856,27 +453,80 @@ document.addEventListener("DOMContentLoaded", () => {
     percentLabel.textContent = "100%";
     statusLabel.textContent = "Ekstraksi selesai!";
     
-    if (convertedDocs.length > 0) {
-      showToast(`Berhasil mengekstrak ${convertedDocs.length} dokumen!`, "success");
+    renderDocList(allDocuments);
+
+    if (newlyConverted.length > 0) {
+      showToast(`Berhasil mengekstrak ${newlyConverted.length} dokumen!`, "success");
+      selectDocument(newlyConverted[0].md_filename);
     }
 
-    setTimeout(async () => {
+    setTimeout(() => {
       progressBox.classList.add("hidden");
       progressBar.style.width = "0%";
       fileInput.value = "";
-      
-      const firstConverted = convertedDocs[0];
-      await loadDocuments(firstConverted ? firstConverted.md_filename : null);
-      
-      if (firstConverted) {
-        selectDocument(firstConverted.md_filename, firstConverted.filename);
-        if (window.innerWidth <= 768) {
-          setMobileView("reader");
-        }
-      }
     }, 800);
   }
-  
+
+  // 8. Download Single File Button
+  downloadBtn.addEventListener("click", () => {
+    if (!currentSelectedMd) return;
+    const doc = allDocuments.find(d => d.md_filename === currentSelectedMd);
+    if (doc && doc.raw_markdown) {
+      downloadMarkdownBlob(doc.md_filename, doc.raw_markdown);
+      showToast(`Mengunduh ${doc.md_filename}...`, "success");
+    }
+  });
+
+  // 9. Download All Files (.zip)
+  if (downloadAllBtn) {
+    downloadAllBtn.addEventListener("click", async () => {
+      if (allDocuments.length === 0) {
+        showToast("Belum ada dokumen Markdown untuk diunduh.", "error");
+        return;
+      }
+      
+      if (typeof JSZip !== "undefined") {
+        showToast("Menyiapkan berkas ZIP...");
+        try {
+          const zip = new JSZip();
+          allDocuments.forEach(doc => {
+            zip.file(doc.md_filename, doc.raw_markdown || `# ${doc.filename}`);
+          });
+          const blob = await zip.generateAsync({ type: "blob" });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = "Semua_Dokumen_Markdown.zip";
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          setTimeout(() => URL.revokeObjectURL(url), 1000);
+          showToast("Berkas ZIP berhasil diunduh!", "success");
+        } catch (zipErr) {
+          console.error("ZIP creation error:", zipErr);
+          showToast("Gagal membuat berkas ZIP", "error");
+        }
+      }
+    });
+  }
+
+  // 10. Copy Markdown to Clipboard
+  copyBtn.addEventListener("click", async () => {
+    if (!rawContentEl.value) return;
+    try {
+      await navigator.clipboard.writeText(rawContentEl.value);
+      copyBtnText.textContent = "Tersalin!";
+      showToast("Markdown berhasil disalin ke clipboard", "success");
+      setTimeout(() => {
+        copyBtnText.textContent = "Salin Markdown";
+      }, 2000);
+    } catch (err) {
+      rawContentEl.select();
+      document.execCommand("copy");
+      showToast("Markdown berhasil disalin", "success");
+    }
+  });
+
   function showToast(msg, type = "info") {
     toastEl.textContent = msg;
     toastEl.className = `toast ${type}`;
@@ -896,178 +546,7 @@ document.addEventListener("DOMContentLoaded", () => {
       .replace(/"/g, "&quot;")
       .replace(/'/g, "&#039;");
   }
-  
-  // 13. Skripsi AI Prompt Helper Templates (Hard Gate R-02 Compliant, No Em Dashes)
-  const SKRIPSI_PROMPTS = {
-    bab1: `Bertindaklah sebagai Dosen Pembimbing Skripsi dan Reviewer Ahli Metodologi Penelitian.
-Evaluasilah BAB I (Pendahuluan) dari draf dokumen berikut. Fokuskan evaluasi pada:
-1. Urgensi Latar Belakang: Apakah permasalahan yang diangkat didukung data riil dan justifikasi ilmiah yang kuat?
-2. Keterkaitan Rumusan Masalah dan Tujuan: Apakah rumusan masalah sudah terukur (measurable) dan terjawab langsung oleh tujuan penelitian?
-3. Batasan Masalah: Apakah batasan ruang lingkup riset sudah jelas (dataset, algoritma, periode waktu)?
-4. Berikan saran revisi kalimat pembuka dan poin perbaikan konkret.
 
-Berikut naskah BAB I:
-[KONTEN DOKUMEN AKAN DISISIPKAN DI SINI]`,
-
-    bab2: `Bertindaklah sebagai Dosen Penelaah Skripsi bidang Kecerdasan Buatan dan Sains Data.
-Analisis BAB II (Tinjauan Pustaka & Landasan Teori) berikut:
-1. State-of-the-Art & Gap Penelitian: Apakah kajian literatur menunjukkan posisi penelitian ini terhadap penelitian-penelitian terdahulu?
-2. Landasan Teori Algoritma: Apakah teori dasar (seperti LSTM, XGBoost, ARIMA, dll.) dijelaskan secara matematis dan konseptual dengan benar?
-3. Relevansi Referensi: Berikan saran literatur atau konsep kunci yang perlu ditambahkan agar landasan teori lebih kokoh.
-
-Berikut naskah BAB II:
-[KONTEN DOKUMEN AKAN DISISIPKAN DI SINI]`,
-
-    bab3: `Bertindaklah sebagai Penguji Sidang Skripsi bidang Data Science dan Machine Learning.
-Lakukan audit kritis terhadap BAB III (Metodologi Penelitian) berikut:
-1. Alur Penelitian (Flowchart): Apakah tahapan riset dari akuisisi data, preprocessing, pemodelan, hingga validasi sudah logis dan terstruktur?
-2. Preprocessing & Validasi Data: Apakah ada risiko data leakage? Apakah split data (train/validation/test) dan scaling data dijelaskan transparan?
-3. Arsitektur Model & Hyperparameter: Apakah konfigurasi parameter model dijelaskan dengan baik?
-4. Metrik Evaluasi: Apakah metrik (RMSE, MAPE, MAE, R-squared) sesuai dengan karakteristik data?
-5. Tuliskan daftar 5 pertanyaan kritis yang kemungkinan akan ditanyakan penguji saat sidang skripsi beserta rekomendasi jawabannya.
-
-Berikut naskah BAB III:
-[KONTEN DOKUMEN AKAN DISISIPKAN DI SINI]`,
-
-    bab4: `Bertindaklah sebagai Dosen Pembimbing Skripsi.
-Bantulah menganalisis dan menyusun narasi akademik untuk BAB IV (Hasil dan Pembahasan) berikut:
-1. Interpretasi Data & Tabel: Buat narasi ilmiah yang menjelaskan makna angka-angka metrik akurasi atau tabel hasil eksperimen.
-2. Analisis Perbandingan: Jelaskan mengapa satu algoritma mengungguli algoritma lain (misal Hybrid LSTM-XGBoost vs Single Model) berdasarkan karakteristik model.
-3. Keterbatasan Eksperimen: Apa saja kelemahan atau anomali data yang perlu diakui secara jujur dalam pembahasan?
-
-Berikut naskah BAB IV:
-[KONTEN DOKUMEN AKAN DISISIPKAN DI SINI]`,
-
-    bab5: `Bertindaklah sebagai Tim Penguji Sidang Skripsi.
-Periksalah BAB V (Kesimpulan dan Saran) berikut:
-1. Apakah kesimpulan secara tegas dan ringkas menjawab setiap poin rumusan masalah penelitian?
-2. Pastikan tidak ada spekulasi atau pernyataan baru yang tidak didukung data pada Bab IV.
-3. Apakah saran riset lanjutan bersifat konstruktif dan teknis (misalnya perbaikan fitur, penambahan dataset, optimasi hyperparameter)?
-
-Berikut naskah BAB V:
-[KONTEN DOKUMEN AKAN DISISIPKAN DI SINI]`,
-
-    daftar_pustaka: `Bertindaklah sebagai Editor Jurnal dan Penyelaras Skripsi.
-Periksalah format sitasi dan daftar pustaka berikut sesuai gaya sitasi akademik (APA 7th Edition atau IEEE):
-1. Verifikasi kelengkapan komponen: Penulis, Tahun, Judul, Jurnal/Prosiding, Volume/Nomor, Halaman, dan DOI/URL.
-2. Identifikasi sitasi dalam teks yang belum ada di daftar pustaka (atau sebaliknya).
-3. Rapikan susunan alfabetis dan format indentasi gantung (hanging indent).
-
-Berikut daftar pustaka / teks dokumen:
-[KONTEN DOKUMEN AKAN DISISIPKAN DI SINI]`
-  };
-
-  function updatePromptPreview() {
-    if (!promptPreviewTextarea) return;
-    const basePrompt = SKRIPSI_PROMPTS[activePromptId] || SKRIPSI_PROMPTS.bab1;
-    const previewContent = currentRawMarkdown ? currentRawMarkdown.substring(0, 500) + "\n\n... [Sisa teks dokumen akan otomatis digabungkan saat disalin] ..." : "(Pilih atau buka dokumen terlebih dahulu)";
-    promptPreviewTextarea.value = basePrompt.replace("[KONTEN DOKUMEN AKAN DISISIPKAN DI SINI]", previewContent);
-  }
-
-  // Outline / Table of Contents Renderer
-  function renderOutline(headings) {
-    if (!outlineList) return;
-    outlineList.innerHTML = "";
-    
-    headings.forEach(h => {
-      const btn = document.createElement("button");
-      btn.className = `outline-item lvl-${h.level}`;
-      btn.textContent = h.title;
-      btn.title = h.title;
-      
-      btn.addEventListener("click", () => {
-        // Find matching heading in rendered pane
-        const headingsInDoc = viewRendered.querySelectorAll("h1, h2, h3, h4");
-        for (const el of headingsInDoc) {
-          if (el.textContent.trim().toLowerCase().includes(h.title.toLowerCase().substring(0, 20))) {
-            el.scrollIntoView({ behavior: "smooth", block: "start" });
-            break;
-          }
-        }
-        if (window.innerWidth <= 768 && outlineDrawer) {
-          outlineDrawer.classList.add("hidden");
-        }
-      });
-      
-      outlineList.appendChild(btn);
-    });
-  }
-
-  // Toggle Outline Drawer
-  if (toggleOutlineBtn) {
-    toggleOutlineBtn.addEventListener("click", () => {
-      if (outlineDrawer) {
-        outlineDrawer.classList.toggle("hidden");
-      }
-    });
-  }
-
-  if (closeOutlineBtn) {
-    closeOutlineBtn.addEventListener("click", () => {
-      if (outlineDrawer) outlineDrawer.classList.add("hidden");
-    });
-  }
-
-  // Skripsi Modal Handlers
-  if (skripsiToolsBtn) {
-    skripsiToolsBtn.addEventListener("click", () => {
-      if (!currentSelectedMd) {
-        showToast("Pilih dokumen terlebih dahulu", "info");
-        return;
-      }
-      updatePromptPreview();
-      if (skripsiModal) skripsiModal.classList.remove("hidden");
-    });
-  }
-
-  if (closeSkripsiModalBtn) {
-    closeSkripsiModalBtn.addEventListener("click", () => {
-      if (skripsiModal) skripsiModal.classList.add("hidden");
-    });
-  }
-
-  if (skripsiModal) {
-    skripsiModal.addEventListener("click", (e) => {
-      if (e.target === skripsiModal) {
-        skripsiModal.classList.add("hidden");
-      }
-    });
-  }
-
-  // Prompt Cards selection
-  promptCards.forEach(card => {
-    card.addEventListener("click", () => {
-      promptCards.forEach(c => c.classList.remove("active"));
-      card.classList.add("active");
-      activePromptId = card.getAttribute("data-prompt-id") || "bab1";
-      updatePromptPreview();
-    });
-  });
-
-  // Copy Full Prompt with Complete Document Text
-  if (copyFullPromptBtn) {
-    copyFullPromptBtn.addEventListener("click", async () => {
-      const basePrompt = SKRIPSI_PROMPTS[activePromptId] || SKRIPSI_PROMPTS.bab1;
-      const fullText = currentRawMarkdown || "(Teks dokumen kosong)";
-      const fullPromptToCopy = basePrompt.replace("[KONTEN DOKUMEN AKAN DISISIPKAN DI SINI]", fullText);
-
-      try {
-        await navigator.clipboard.writeText(fullPromptToCopy);
-        copyPromptBtnText.textContent = "Tersalin ke Clipboard!";
-        showToast("Prompt skripsi + teks dokumen berhasil disalin ke clipboard!", "success");
-        setTimeout(() => {
-          copyPromptBtnText.textContent = "Salin Prompt Lengkap + Teks Dokumen";
-          if (skripsiModal) skripsiModal.classList.add("hidden");
-        }, 1500);
-      } catch (err) {
-        promptPreviewTextarea.value = fullPromptToCopy;
-        promptPreviewTextarea.select();
-        document.execCommand("copy");
-        showToast("Prompt berhasil disalin", "success");
-      }
-    });
-  }
-
-  // Initialize
-  loadDocuments();
+  // Initial render: empty list on fresh load (clean state on every refresh)
+  renderDocList(allDocuments);
 });

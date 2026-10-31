@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
-  <title>PaperMarkdown Studio : Layar Presentasi Dokumen Ilmiah Siap AI</title>
-  <meta name="description" content="Aplikasi konversi PDF artikel ilmiah ke format Markdown terstruktur dengan Layar Presentasi Glassmorphism yang dinamis dan responsif di smartphone.">
+  <title>PaperMarkdown : Konversi PDF & Word ke Markdown</title>
+  <meta name="description" content="Konversi instan file PDF dan Word (.docx) ke format Markdown bersih, siap unduh dan siap pakai.">
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
@@ -25,16 +25,16 @@
         </svg>
       </div>
       <div class="brand-text">
-        <h1 class="brand-title">PaperMarkdown Studio</h1>
-        <p class="brand-subtitle">Layar Presentasi & Tools Skripsi: PDF, Word (.docx) & AI</p>
+        <h1 class="brand-title">PaperMarkdown</h1>
+        <p class="brand-subtitle">Konversi Instan PDF & Word (.docx) ke Markdown</p>
       </div>
     </div>
 
     <div class="header-actions">
-      <!-- Status Badge (Desktop & Tablet) -->
-      <div class="real-status-badge desktop-only" id="engine-status">
+      <!-- Status Badge -->
+      <div class="real-status-badge" id="engine-status">
         <span class="status-indicator"></span>
-        <span id="doc-counter">0 Dokumen Siap</span>
+        <span id="doc-counter">0 Dokumen</span>
       </div>
 
       <!-- Theme Toggle Button -->
@@ -59,12 +59,12 @@
 
   <!-- Main Layout -->
   <main class="app-container" id="app-container">
-    <!-- Left Column: Upload & Document Library (Mobile View: Tab 'list' or 'upload') -->
+    <!-- Left Column: Upload & Document List -->
     <aside class="sidebar-panel" id="sidebar-panel">
       <!-- Upload Dropzone Card -->
-      <section class="panel-card upload-section" id="mobile-upload-card">
-        <h2 class="section-title">Upload Dokumen PDF & Word</h2>
-        <div id="dropzone" class="dropzone-area" tabindex="0" role="button" aria-label="Area Unggah File PDF atau Word. Klik atau seret file ke sini">
+      <section class="panel-card upload-section">
+        <h2 class="section-title">Upload Dokumen</h2>
+        <div id="dropzone" class="dropzone-area" tabindex="0" role="button" aria-label="Area Unggah File PDF atau Word">
           <input type="file" id="file-input" accept=".pdf,.docx,.doc" multiple hidden>
           <div class="dropzone-content">
             <div class="upload-icon-wrapper" aria-hidden="true">
@@ -74,23 +74,23 @@
                 <line x1="12" y1="3" x2="12" y2="15"></line>
               </svg>
             </div>
-            <p class="dropzone-main-text">Tarik & lepas file PDF atau Word (.docx / .doc)</p>
-            <p class="dropzone-sub-text">atau <span class="highlight-browse">pilih dokumen skripsi dari memori</span></p>
+            <p class="dropzone-main-text">Tarik & lepas file PDF atau Word (.docx)</p>
+            <p class="dropzone-sub-text">atau <span class="highlight-browse">pilih file dari perangkat</span></p>
           </div>
         </div>
 
         <!-- Auto-Download Options -->
         <div class="upload-options">
-          <label class="auto-download-label" title="Otomatis mengunduh file .md ke browser setelah selesai konversi">
+          <label class="auto-download-label" title="Otomatis mengunduh file .md setelah konversi selesai">
             <input type="checkbox" id="auto-download-toggle" checked>
-            <span>Auto-download file .md setelah konversi</span>
+            <span>Auto-download file .md setelah diekstrak</span>
           </label>
         </div>
 
         <!-- Upload Progress Indicator -->
         <div id="upload-progress-container" class="progress-box hidden" aria-live="polite">
           <div class="progress-header">
-            <span id="upload-status-label" class="progress-label">Mengonversi dokumen...</span>
+            <span id="upload-status-label" class="progress-label">Mengekstrak dokumen...</span>
             <span id="upload-percent-label" class="progress-percent">0%</span>
           </div>
           <div class="progress-bar-bg">
@@ -100,29 +100,20 @@
       </section>
 
       <!-- Document List Card -->
-      <section class="panel-card list-section" id="mobile-list-card">
+      <section class="panel-card list-section">
         <div class="list-header">
           <div class="list-title-group">
-            <h2 class="section-title">Koleksi Dokumen & Skripsi</h2>
+            <h2 class="section-title">Hasil Ekstraksi</h2>
             <span id="badge-count" class="counter-badge">0 file</span>
           </div>
-          <button id="download-all-btn" class="glass-mini-btn download-all-btn" title="Unduh semua file Markdown dalam satu file .zip">
+          <button id="download-all-btn" class="glass-mini-btn download-all-btn" style="display:none;" title="Unduh semua file Markdown (.zip)">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
               <polyline points="7 10 12 15 17 10"></polyline>
               <line x1="12" y1="15" x2="12" y2="3"></line>
             </svg>
-            <span>Unduh ZIP</span>
+            <span>Unduh Semua (.zip)</span>
           </button>
-        </div>
-
-        <!-- Search / Filter input -->
-        <div class="search-box">
-          <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="11" cy="11" r="8"></circle>
-            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-          </svg>
-          <input type="text" id="search-input" placeholder="Cari nama paper, topik, atau bab skripsi..." aria-label="Cari dokumen">
         </div>
 
         <!-- Document Items Container -->
@@ -130,29 +121,19 @@
           <!-- Populated by JavaScript -->
         </div>
 
-        <!-- Empty state for search -->
-        <div id="empty-search" class="empty-state hidden">
-          <p>Tidak ada dokumen yang sesuai dengan pencarian Anda.</p>
+        <!-- Empty state when no documents yet -->
+        <div id="empty-search" class="empty-state">
+          <p>Belum ada dokumen. Silakan unggah file PDF atau Word di atas.</p>
         </div>
       </section>
     </aside>
 
-    <!-- Right Column: Transparent Presentation Screen in Glassmorphism style -->
+    <!-- Right Column: Result Markdown Viewer -->
     <section class="content-panel" id="content-panel">
-      <!-- The Frosted Glass Presentation Screen Frame -->
       <div class="presentation-screen glass-panel" id="presentation-screen">
         
-        <!-- Screen Top Glass Header Bar -->
+        <!-- Screen Top Bar -->
         <div class="screen-top-bar">
-          <!-- Back button on mobile to return to list -->
-          <button id="mobile-back-btn" class="mobile-back-btn mobile-only" aria-label="Kembali ke Daftar Dokumen">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="19" y1="12" x2="5" y2="12"></line>
-              <polyline points="12 19 5 12 12 5"></polyline>
-            </svg>
-            <span>Daftar</span>
-          </button>
-
           <div class="screen-traffic-lights desktop-only" aria-hidden="true">
             <span class="light-dot red"></span>
             <span class="light-dot yellow"></span>
@@ -160,72 +141,32 @@
           </div>
 
           <div class="screen-title-area">
-            <span class="screen-pill-tag">Layar Presentasi</span>
-            <h2 id="active-doc-title" class="active-title">Pilih dokumen untuk membaca hasil</h2>
-          </div>
-
-          <div class="screen-controls">
-            <!-- Font Zoom Controls -->
-            <div class="font-zoom-group" title="Atur kenyamanan ukuran teks">
-              <button id="font-decrease-btn" class="glass-mini-btn" aria-label="Perkecil Ukuran Teks">A-</button>
-              <span id="font-size-label" class="font-size-text">100%</span>
-              <button id="font-increase-btn" class="glass-mini-btn" aria-label="Perbesar Ukuran Teks">A+</button>
-            </div>
-
-            <!-- Presentation Fullscreen Toggle (Desktop) -->
-            <button id="toggle-presentation-btn" class="glass-mini-btn icon-only desktop-only" title="Mode Layar Penuh / Fokus Membaca" aria-label="Mode Fokus Membaca">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="15 3 21 3 21 9"></polyline>
-                <polyline points="9 21 3 21 3 15"></polyline>
-                <line x1="21" y1="3" x2="14" y2="10"></line>
-                <line x1="3" y1="21" x2="10" y2="14"></line>
-              </svg>
-            </button>
+            <span class="screen-pill-tag">Hasil Markdown</span>
+            <h2 id="active-doc-title" class="active-title">Pilih atau unggah file untuk melihat hasil</h2>
           </div>
         </div>
 
-        <!-- Secondary Glass Toolbar: Mode Tabs & Actions -->
+        <!-- Toolbar: Mode Tabs & Actions -->
         <div class="screen-toolbar">
           <div class="view-mode-tabs" role="tablist">
             <button id="tab-rendered" class="tab-btn active" role="tab" aria-selected="true" aria-controls="view-rendered">
-              Tampilan Terformat
+              Pratinjau
             </button>
             <button id="tab-raw" class="tab-btn" role="tab" aria-selected="false" aria-controls="view-raw">
-              Sumber Markdown
+              Markdown Mentah
             </button>
           </div>
 
           <div class="toolbar-actions">
-            <!-- Skripsi Tools AI Button -->
-            <button id="skripsi-tools-btn" class="glass-action-btn skripsi-glow-btn" title="Buka Asisten Prompt AI Khusus Skripsi" disabled>
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
-              </svg>
-              <span>Tools Skripsi AI</span>
-            </button>
-
-            <!-- Table of Contents / Outline Button -->
-            <button id="toggle-outline-btn" class="glass-action-btn" title="Lihat Daftar Isi / Struktur Bab Skripsi" disabled>
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="8" y1="6" x2="21" y2="6"></line>
-                <line x1="8" y1="12" x2="21" y2="12"></line>
-                <line x1="8" y1="18" x2="21" y2="18"></line>
-                <line x1="3" y1="6" x2="3.01" y2="6"></line>
-                <line x1="3" y1="12" x2="3.01" y2="12"></line>
-                <line x1="3" y1="18" x2="3.01" y2="18"></line>
-              </svg>
-              <span>Daftar Isi</span>
-            </button>
-
-            <button id="copy-btn" class="glass-action-btn" title="Salin seluruh isi Markdown ke clipboard" disabled>
+            <button id="copy-btn" class="glass-action-btn" title="Salin isi Markdown ke clipboard" disabled>
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
                 <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
               </svg>
-              <span id="copy-btn-text">Salin Teks</span>
+              <span id="copy-btn-text">Salin Markdown</span>
             </button>
 
-            <button id="download-btn" class="glass-action-btn primary" title="Unduh file .md ke komputer Anda" disabled>
+            <button id="download-btn" class="glass-action-btn primary" title="Unduh file Markdown (.md)" disabled>
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                 <polyline points="7 10 12 15 17 10"></polyline>
@@ -236,54 +177,29 @@
           </div>
         </div>
 
-        <!-- Thesis Statistics Pill Bar -->
-        <div id="skripsi-stats-bar" class="skripsi-stats-bar hidden" aria-label="Statistik Dokumen Skripsi">
-          <div class="stat-pill"><span class="stat-icon">📝</span><span id="stat-words">0 Kata</span></div>
-          <div class="stat-pill"><span class="stat-icon">⏱️</span><span id="stat-reading">0 Menit Baca</span></div>
-          <div class="stat-pill"><span class="stat-icon">📑</span><span id="stat-headings">0 Bab / Subbab</span></div>
-          <div class="stat-pill"><span class="stat-icon">📊</span><span id="stat-tables">0 Tabel</span></div>
-        </div>
-
-        <!-- The Presentation Viewport with Outline Drawer -->
+        <!-- Viewport -->
         <div class="screen-viewport" id="screen-viewport">
-          <!-- Slide-out Table of Contents / Outline Drawer -->
-          <div id="outline-drawer" class="outline-drawer hidden" aria-label="Daftar Isi Skripsi">
-            <div class="outline-header">
-              <h3>Daftar Isi & Struktur Bab</h3>
-              <button id="close-outline-btn" class="glass-mini-btn" aria-label="Tutup Daftar Isi">✕</button>
-            </div>
-            <nav id="outline-list" class="outline-nav-list">
-              <!-- Populated by JavaScript -->
-            </nav>
-          </div>
-
           <!-- Rendered Tab Content -->
           <div id="view-rendered" class="rendered-pane" role="tabpanel" aria-labelledby="tab-rendered">
             <div id="rendered-content" class="markdown-body">
-              <!-- Family-Friendly Welcome Screen -->
               <div class="welcome-box">
                 <div class="welcome-icon-bubble" aria-hidden="true">
                   <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
-                    <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                    <line x1="16" y1="17" x2="8" y2="17"></line>
                   </svg>
                 </div>
-                <h3>Selamat Datang di PaperMarkdown Studio</h3>
-                <p>Alat pendukung riset dan penulisan skripsi: konversi artikel ilmiah PDF dan draft Microsoft Word (.docx) menjadi format Markdown siap analisis AI dengan navigasi bab terstruktur.</p>
-                <div class="feature-pills">
-                  <span class="pill">📄 Word (.docx) & PDF Lengkap</span>
-                  <span class="pill">🎓 Asisten Prompt Skripsi AI</span>
-                  <span class="pill">📑 Daftar Isi Otomatis</span>
-                  <span class="pill">📊 Ekstraksi Tabel Presisi</span>
-                  <span class="pill">✨ Tampilan Glassmorphism</span>
-                </div>
+                <h3>Konverter PDF & Word ke Markdown</h3>
+                <p>Masukkan file PDF atau Word (.docx) di kolom sebelah kiri. Dokumen akan langsung diekstrak ke format Markdown bersih, siap disalin atau diunduh.</p>
               </div>
             </div>
           </div>
 
           <!-- Raw Markdown Tab Content -->
           <div id="view-raw" class="raw-pane hidden" role="tabpanel" aria-labelledby="tab-raw">
-            <textarea id="raw-content" class="raw-textarea" readonly spellcheck="false" placeholder="Teks sumber Markdown akan tampil di sini..."></textarea>
+            <textarea id="raw-content" class="raw-textarea" readonly spellcheck="false" placeholder="Teks Markdown akan tampil di sini..."></textarea>
           </div>
         </div>
 
@@ -291,132 +207,10 @@
     </section>
   </main>
 
-  <!-- Skripsi AI Prompts Modal Dialog -->
-  <div id="skripsi-modal" class="skripsi-modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="skripsi-modal-title">
-    <div class="skripsi-modal-card glass-modal">
-      <div class="modal-header">
-        <div class="modal-title-box">
-          <span class="modal-badge">Asisten Skripsi</span>
-          <h3 id="skripsi-modal-title">Template Prompt AI untuk Skripsi</h3>
-        </div>
-        <button id="close-skripsi-modal-btn" class="modal-close-btn" aria-label="Tutup Dialog">✕</button>
-      </div>
-
-      <p class="modal-desc">
-        Pilih kebutuhan skripsi Anda di bawah ini. Teks dokumen yang sedang aktif akan otomatis digabungkan ke dalam instruksi prompt ilmiah untuk ChatGPT, Claude, atau Gemini.
-      </p>
-
-      <div class="prompt-grid">
-        <!-- Prompt 1: Bab 1 Latar Belakang -->
-        <div class="prompt-card" data-prompt-id="bab1">
-          <div class="prompt-icon">🔍</div>
-          <div class="prompt-info">
-            <h4>Review Bab 1 (Latar Belakang & Rumusan)</h4>
-            <p>Evaluasi urgensi penelitian, keselarasan rumusan masalah dengan tujuan, dan latar belakang ilmiah.</p>
-          </div>
-        </div>
-
-        <!-- Prompt 2: Bab 2 Tinjauan Pustaka & Gap -->
-        <div class="prompt-card" data-prompt-id="bab2">
-          <div class="prompt-icon">📚</div>
-          <div class="prompt-info">
-            <h4>Analisis Bab 2 (Tinjauan Pustaka & Gap Riset)</h4>
-            <p>Mencari research gap, perbandingan penelitian terdahulu, dan landasan teori algoritma yang kuat.</p>
-          </div>
-        </div>
-
-        <!-- Prompt 3: Bab 3 Metodologi & Desain Model -->
-        <div class="prompt-card" data-prompt-id="bab3">
-          <div class="prompt-icon">⚙️</div>
-          <div class="prompt-info">
-            <h4>Kritik Bab 3 (Metodologi & Metrik Evaluasi)</h4>
-            <p>Cek tahapan alur penelitian, preprocessing dataset, tuning hyperparameter, dan metrik (RMSE, MAPE, MAE).</p>
-          </div>
-        </div>
-
-        <!-- Prompt 4: Bab 4 Hasil & Pembahasan -->
-        <div class="prompt-card" data-prompt-id="bab4">
-          <div class="prompt-icon">📈</div>
-          <div class="prompt-info">
-            <h4>Interpretasi Bab 4 (Hasil & Pembahasan Tabel)</h4>
-            <p>Bantu membuat narasi akademis yang mendalam dari tabel data performa dan grafik hasil eksperimen.</p>
-          </div>
-        </div>
-
-        <!-- Prompt 5: Bab 5 Kesimpulan & Saran -->
-        <div class="prompt-card" data-prompt-id="bab5">
-          <div class="prompt-icon">🎯</div>
-          <div class="prompt-info">
-            <h4>Validasi Bab 5 (Kesimpulan & Saran Masa Depan)</h4>
-            <p>Memastikan kesimpulan secara tegas menjawab rumusan masalah tanpa berspekulasi di luar temuan.</p>
-          </div>
-        </div>
-
-        <!-- Prompt 6: Format Daftar Pustaka APA / IEEE -->
-        <div class="prompt-card" data-prompt-id="daftar_pustaka">
-          <div class="prompt-icon">📑</div>
-          <div class="prompt-info">
-            <h4>Standardisasi Sitasi & Daftar Pustaka</h4>
-            <p>Periksa konsistensi sitasi dalam teks dan format referensi sesuai standar APA edisi ke-7 atau IEEE.</p>
-          </div>
-        </div>
-      </div>
-
-      <!-- Prompt Preview & Copy Box -->
-      <div class="prompt-preview-container">
-        <label for="prompt-preview-textarea" class="preview-label">Preview Prompt Siap Salin ke AI:</label>
-        <textarea id="prompt-preview-textarea" class="prompt-textarea" readonly></textarea>
-        <div class="modal-footer-actions">
-          <span id="prompt-char-note" class="char-note">Siap disalin ke ChatGPT, Claude, atau Gemini</span>
-          <button id="copy-full-prompt-btn" class="glass-action-btn primary large-btn">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-            </svg>
-            <span id="copy-prompt-btn-text">Salin Prompt Lengkap + Teks Dokumen</span>
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Mobile Floating Glass Navigation Dock (R-03 Compliant) -->
-  <nav class="mobile-nav-dock glass-dock mobile-only" aria-label="Navigasi Utama Ponsel">
-    <button id="mobile-nav-list" class="dock-item active" aria-label="Buka Koleksi Dokumen">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <line x1="8" y1="6" x2="21" y2="6"></line>
-        <line x1="8" y1="12" x2="21" y2="12"></line>
-        <line x1="8" y1="18" x2="21" y2="18"></line>
-        <line x1="3" y1="6" x2="3.01" y2="6"></line>
-        <line x1="3" y1="12" x2="3.01" y2="12"></line>
-        <line x1="3" y1="18" x2="3.01" y2="18"></line>
-      </svg>
-      <span>Koleksi</span>
-    </button>
-
-    <button id="mobile-nav-upload" class="dock-item" aria-label="Buka Menu Unggah Dokumen">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-        <polyline points="17 8 12 3 7 8"></polyline>
-        <line x1="12" y1="3" x2="12" y2="15"></line>
-      </svg>
-      <span>Upload</span>
-    </button>
-
-    <button id="mobile-nav-reader" class="dock-item" aria-label="Buka Layar Baca">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
-        <line x1="8" y1="21" x2="16" y2="21"></line>
-        <line x1="12" y1="17" x2="12" y2="21"></line>
-      </svg>
-      <span>Layar Baca</span>
-    </button>
-  </nav>
-
   <!-- Notification Toast -->
   <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
 
-  <!-- Client-Side Document Engines (Fast, 100% Private, Zero Upload Size Limits) -->
+  <!-- Client-Side Document Engines -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.8.0/mammoth.browser.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/turndown/7.2.0/turndown.min.js"></script>
