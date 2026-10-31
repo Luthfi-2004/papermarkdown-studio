@@ -87,11 +87,17 @@ def build_document_details(raw_md):
     }
 
 @app.route("/")
+def index():
+    return send_from_directory(STATIC_DIR, "index.html")
+
 @app.route("/api")
 @app.route("/api/")
 @app.route("/api/index")
-def index():
-    return send_from_directory(STATIC_DIR, "index.html")
+def api_root():
+    return jsonify({
+        "name": "PaperMarkdown Studio API",
+        "status": "online"
+    })
 
 @app.route("/favicon.ico")
 def favicon():

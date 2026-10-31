@@ -253,6 +253,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
     try {
       const res = await fetch("/api/documents");
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+      const cType = res.headers.get("content-type") || "";
+      if (!cType.includes("application/json")) {
+        throw new Error("Respons bukan JSON");
+      }
       const data = await res.json();
       
       let serverDocs = [];
@@ -568,6 +575,107 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
   
+  // 11b. Client-Side PDF Parsing Engine (Fallback for files > 4.5 MB or Serverless Upload Limits)
+  function extractHeadingsFromText(text) {
+    const headings = [];
+    if (!text) return headings;
+    const lines = text.split("\n");
+    for (const line of lines) {
+      const trimmed = line.trim();
+      const m = trimmed.match(/^(#{1,4})\s+(.+)$/);
+      if (m) {
+        const level = m[1].length;
+        const title = m[2].replace(/[*_`]/g, "").trim();
+        const slug = title.toLowerCase().replace(/[^a-z0-9_-]/g, "-").replace(/^-+|-+$/g, "");
+        headings.push({ level, title, slug });
+      }
+    }
+    return headings;
+  }
+
+  async function parsePdfClientSide(file) {
+    if (typeof pdfjsLib === "undefined") {
+      throw new Error("Library PDF.js belum selesai dimuat.");
+    }
+    pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+    
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    const numPages = pdf.numPages;
+    const baseName = file.name.replace(/\.[^/.]+$/, "");
+    
+    let pagesMd = [];
+    let totalWords = 0;
+    
+    for (let p = 1; p <= numPages; p++) {
+      const page = await pdf.getPage(p);
+      const content = await page.getTextContent();
+      
+      const lineMap = new Map();
+      content.items.forEach(item => {
+        const y = Math.round(item.transform[5] / 4) * 4;
+        if (!lineMap.has(y)) lineMap.set(y, []);
+        lineMap.get(y).push(item);
+      });
+      
+      const sortedY = Array.from(lineMap.keys()).sort((a, b) => b - a);
+      let pageText = "";
+      
+      sortedY.forEach(y => {
+        const lineItems = lineMap.get(y).sort((a, b) => a.transform[4] - b.transform[4]);
+        const lineStr = lineItems.map(it => it.str).join(" ").trim();
+        if (lineStr) {
+          if (/^(?:\d+\.?|[IVXLCDM]+\.?)\s+(?:PENDAHULUAN|INTRODUCTION|METODE|METHODOLOGY|HASIL|KESIMPULAN|REFERENCES|DAFTAR PUSTAKA)\b/i.test(lineStr)) {
+            pageText += `\n## ${lineStr}\n\n`;
+          } else if (/^\d+\.\d+\.?\s+[A-Z]/.test(lineStr)) {
+            pageText += `\n### ${lineStr}\n\n`;
+          } else {
+            pageText += lineStr + "\n";
+          }
+        }
+      });
+      
+      pageText = pageText.replace(/(\w+)-\s*\n\s*(\w+)/g, "$1$2");
+      pageText = pageText.replace(/\n{3,}/g, "\n\n");
+      
+      const pageWords = pageText.split(/\s+/).filter(Boolean).length;
+      totalWords += pageWords;
+      pagesMd.push(`<!-- PAGE ${p} START -->\n\n${pageText.trim()}\n\n<!-- PAGE ${p} END -->\n\n---\n`);
+    }
+    
+    const mdFilename = baseName.replace(/[^a-zA-Z0-9_\-]/g, "_").slice(0, 60) + ".md";
+    const header = `# ${baseName}\n\n> **Metadata Dokumen**:\n> - **File Asli**: \`${file.name}\`\n> - **Jumlah Halaman**: ${numPages} Halaman\n> - **Mode Konversi**: In-Browser Client Engine (Bebas Batas Upload)\n> - **Status Dokumen**: Siap Analisis Skripsi & AI\n\n---\n\n`;
+    const rawMd = header + pagesMd.join("\n\n");
+    
+    const rendered = rawMd
+      .replace(/^# (.*$)/gim, '<h1>$1</h1>')
+      .replace(/^## (.*$)/gim, '<h2>$1</h2>')
+      .replace(/^### (.*$)/gim, '<h3>$1</h3>')
+      .replace(/^> (.*$)/gim, '<blockquote>$1</blockquote>')
+      .replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>')
+      .replace(/\n/gim, '<br>');
+      
+    const headings = extractHeadingsFromText(rawMd);
+    
+    return {
+      filename: file.name,
+      md_filename: mdFilename,
+      file_type: "pdf",
+      size_bytes: file.size,
+      has_markdown: true,
+      raw_markdown: rawMd,
+      rendered_html: rendered,
+      stats: {
+        word_count: totalWords,
+        char_count: rawMd.length,
+        reading_time_min: Math.max(1, Math.round(totalWords / 200)),
+        headings_count: headings.length,
+        tables_count: 0
+      },
+      headings: headings
+    };
+  }
+
   async function handleFilesUpload(files) {
     const validFiles = Array.from(files).filter(f => {
       const name = f.name.toLowerCase();
@@ -577,96 +685,125 @@ document.addEventListener("DOMContentLoaded", () => {
       showToast("Mohon pilih file berekstensi .pdf, .docx, atau .doc", "error");
       return;
     }
-    
-    const formData = new FormData();
-    validFiles.forEach(f => formData.append("files[]", f));
-    
+
     progressBox.classList.remove("hidden");
-    progressBar.style.width = "20%";
-    percentLabel.textContent = "20%";
-    statusLabel.textContent = `Mengunggah & mengonversi ${validFiles.length} file...`;
-    
-    try {
-      progressBar.style.width = "50%";
-      percentLabel.textContent = "50%";
-      
-      const res = await fetch("/api/upload", {
-        method: "POST",
-        body: formData
-      });
-      
-      progressBar.style.width = "85%";
-      percentLabel.textContent = "85%";
-      
-      const data = await res.json();
-      
-      if (!data.success) {
-        showToast(data.error || "Gagal mengonversi file", "error");
-        progressBox.classList.add("hidden");
-        return;
-      }
-      
-      progressBar.style.width = "100%";
-      percentLabel.textContent = "100%";
-      statusLabel.textContent = "Konversi selesai!";
-      
-      showToast(`Berhasil mengonversi ${data.converted.length} dokumen!`, "success");
+    progressBar.style.width = "10%";
+    percentLabel.textContent = "10%";
+    statusLabel.textContent = `Memproses ${validFiles.length} file...`;
 
-      // Save converted documents to client memory & localStorage cache
-      if (data.converted) {
-        data.converted.forEach(item => {
-          if (item && item.md_filename) {
-            saveToClientCache(item);
-          }
-        });
+    const convertedDocs = [];
+
+    for (let i = 0; i < validFiles.length; i++) {
+      const file = validFiles[i];
+      const percent = Math.round(((i + 0.5) / validFiles.length) * 80);
+      progressBar.style.width = `${percent}%`;
+      percentLabel.textContent = `${percent}%`;
+      statusLabel.textContent = `Mengonversi [${i + 1}/${validFiles.length}]: ${file.name}...`;
+
+      let convertedItem = null;
+
+      // If file is > 4.2 MB, use client-side parsing directly to bypass Vercel 4.5 MB limit
+      if (file.size > 4.2 * 1024 * 1024 && file.name.toLowerCase().endsWith(".pdf")) {
+        try {
+          showToast(`File besar (${(file.size / 1024 / 1024).toFixed(1)} MB): Memproses via browser engine...`);
+          convertedItem = await parsePdfClientSide(file);
+        } catch (clientErr) {
+          console.warn("Client-side parse error, attempting server upload:", clientErr);
+        }
       }
 
-      // Auto-download converted files if enabled (instant client Blob download)
-      const isAutoDownload = autoDownloadToggle ? autoDownloadToggle.checked : true;
-      if (isAutoDownload && data.converted) {
-        data.converted.forEach((item, idx) => {
-          if (item.md_filename) {
-            setTimeout(() => {
-              let downloaded = false;
-              if (item.raw_markdown) {
-                downloaded = downloadMarkdownBlob(item.md_filename, item.raw_markdown);
-              }
-              if (!downloaded) {
-                const a = document.createElement("a");
-                a.href = `/api/download/${encodeURIComponent(item.md_filename)}`;
-                a.download = item.md_filename;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-              }
-              showToast(`File ${item.md_filename} otomatis diunduh!`, "success");
-            }, idx * 400);
+      // If not parsed on client, upload to /api/upload
+      if (!convertedItem) {
+        const formData = new FormData();
+        formData.append("file", file);
+
+        try {
+          const res = await fetch("/api/upload", {
+            method: "POST",
+            body: formData
+          });
+
+          if (res.status === 413) {
+            // Vercel 413 Payload Too Large: Auto-fallback to browser engine
+            if (file.name.toLowerCase().endsWith(".pdf")) {
+              showToast(`File melebihi batas upload Vercel: Mengalihkan ke browser engine...`, "info");
+              convertedItem = await parsePdfClientSide(file);
+            } else {
+              showToast(`File '${file.name}' melebihi batas 4.5 MB Vercel.`, "error");
+              continue;
+            }
+          } else if (!res.ok) {
+            let errMsg = `Server error ${res.status}`;
+            try {
+              const errData = await res.json();
+              errMsg = errData.error || errMsg;
+            } catch (_) {}
+            showToast(errMsg, "error");
+            continue;
+          } else {
+            const data = await res.json();
+            if (data.success && data.converted && data.converted.length > 0) {
+              convertedItem = data.converted[0];
+            } else {
+              showToast(data.error || `Gagal mengonversi ${file.name}`, "error");
+              continue;
+            }
           }
-        });
-      }
-      
-      setTimeout(async () => {
-        progressBox.classList.add("hidden");
-        progressBar.style.width = "0%";
-        fileInput.value = "";
-        
-        const firstConverted = data.converted[0];
-        await loadDocuments(firstConverted ? firstConverted.md_filename : null);
-        
-        // Auto-select and transition to reader
-        if (firstConverted) {
-          selectDocument(firstConverted.md_filename, firstConverted.filename);
-          if (window.innerWidth <= 768) {
-            setMobileView("reader");
+        } catch (fetchErr) {
+          console.error("Fetch error on upload:", fetchErr);
+          if (file.name.toLowerCase().endsWith(".pdf")) {
+            try {
+              showToast(`Koneksi server gagal: Mengalihkan ke browser engine...`);
+              convertedItem = await parsePdfClientSide(file);
+            } catch (fallbackErr) {
+              showToast(`Gagal mengonversi ${file.name}`, "error");
+              continue;
+            }
+          } else {
+            showToast(`Gagal mengonversi ${file.name}`, "error");
+            continue;
           }
         }
-      }, 1000);
-      
-    } catch (err) {
-      console.error(err);
-      showToast("Terjadi kesalahan koneksi", "error");
-      progressBox.classList.add("hidden");
+      }
+
+      if (convertedItem) {
+        saveToClientCache(convertedItem);
+        convertedDocs.push(convertedItem);
+
+        // Auto-download if enabled
+        const isAutoDownload = autoDownloadToggle ? autoDownloadToggle.checked : true;
+        if (isAutoDownload && convertedItem.raw_markdown) {
+          setTimeout(() => {
+            downloadMarkdownBlob(convertedItem.md_filename, convertedItem.raw_markdown);
+            showToast(`File ${convertedItem.md_filename} otomatis diunduh!`, "success");
+          }, 300);
+        }
+      }
     }
+
+    progressBar.style.width = "100%";
+    percentLabel.textContent = "100%";
+    statusLabel.textContent = "Semua konversi selesai!";
+    
+    if (convertedDocs.length > 0) {
+      showToast(`Berhasil mengonversi ${convertedDocs.length} dokumen!`, "success");
+    }
+
+    setTimeout(async () => {
+      progressBox.classList.add("hidden");
+      progressBar.style.width = "0%";
+      fileInput.value = "";
+      
+      const firstConverted = convertedDocs[0];
+      await loadDocuments(firstConverted ? firstConverted.md_filename : null);
+      
+      if (firstConverted) {
+        selectDocument(firstConverted.md_filename, firstConverted.filename);
+        if (window.innerWidth <= 768) {
+          setMobileView("reader");
+        }
+      }
+    }, 1000);
   }
   
   function showToast(msg, type = "info") {
